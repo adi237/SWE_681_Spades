@@ -26,7 +26,7 @@ class SignUp extends React.Component {
                 open = { true }
             >   
                 <div>
-                    <div className="imgcontainer" style = {{ height:"50px", fontSize: '18px', textAlign: "center" }} >
+                    <div className="imgcontainer123" style = {{ height:"50px", fontSize: '18px', textAlign: "center" }} >
 						<img src="./img/spade.png" alt="Avatar" className="avatar" width="50px" height="50px"/>
                     </div>
 					
@@ -59,7 +59,7 @@ class SignUp extends React.Component {
 						/><br />
                     </div>
 					
-					<div className="imgcontainer" style = {{ height:"30px", fontSize: '18px', textAlign: "center" }} >
+					<div className="imgcontainer123" style = {{ height:"30px", fontSize: '18px', textAlign: "center" }} >
 						
                     </div>
 					
@@ -67,7 +67,7 @@ class SignUp extends React.Component {
 							<RaisedButton label="Sign Up" primary={true} onClick={this.onClickReset} fullWidth={true}/>
 					</Flexbox>
 					
-					<div className="imgcontainer" style = {{ height:"10px", fontSize: '18px', textAlign: "center" }} >
+					<div className="imgcontainer123" style = {{ height:"10px", fontSize: '18px', textAlign: "center" }} >
 						
                     </div>
                 </div>  
