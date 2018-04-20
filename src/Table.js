@@ -36,6 +36,12 @@ class Table extends Component {
 	
 	componentDidMount() {
 		var context = this;
+		var centralContainerHeight = document.getElementsByClassName('CentralOuterContainer') ? document.getElementsByClassName('CentralOuterContainer')[0].clientHeight : "350px";
+		var playArea = document.getElementById('CardPlayArea') ? document.getElementById('CardPlayArea') : null;
+		
+		if(playArea)
+			playArea.style.height = centralContainerHeight + "px";
+		
 		window.onload = function(e){ 
 			context.renderInitialDeck(context);
 			
@@ -64,10 +70,10 @@ class Table extends Component {
 		this.deck.fan();
 		
 		
-		this.deck.cards.forEach(function (card, i) {
+		/*this.deck.cards.forEach(function (card, i) {
 			  card.enableDragging()
 			  card.enableFlipping()
-		});
+		});*/
 		
 		//context.dealCards();
 	}
@@ -75,19 +81,22 @@ class Table extends Component {
 	dealCards(){
 		var northAvatar = document.getElementsByClassName('NorthAvatar') ? document.getElementsByClassName('NorthAvatar')[0] : null;
 		var NorthOuterContainer = document.getElementsByClassName('NorthOuterContainer') ? document.getElementsByClassName('NorthOuterContainer')[0] : null;
+		var SouthContainer = document.getElementsByClassName('SouthContainer') ? document.getElementsByClassName('SouthContainer')[0] : null;
 		var westAvatar = document.getElementsByClassName('WestAvatar') ? document.getElementsByClassName('WestAvatar')[0] : null;
 		var eastAvatar = document.getElementsByClassName('EastAvatar') ? document.getElementsByClassName('EastAvatar')[0] : null;
 		var southAvatar = document.getElementsByClassName('SouthAvatar') ? document.getElementsByClassName('SouthAvatar')[0] : null;
+		 
 
 		var context = this;
 		var counter=0;
 		//var x = northAvatar.getBoundingClientRect().x - eastAvatar.getBoundingClientRect().x;
 		//var y = northAvatar.getBoundingClientRect().y - eastAvatar.getBoundingClientRect().y;
-		
+		var randomVar;
 		if(northAvatar && westAvatar && eastAvatar && southAvatar){
 			this.deck.cards.forEach(function (card, i) {
 				card.setSide('back');
 				
+				randomVar = i * 20;
 				// explode
 				//debugger;
 				switch(i%4){
@@ -96,26 +105,53 @@ class Table extends Component {
 							card,
 							{
 								i: i,
-								x: northAvatar.getBoundingClientRect().x+counter-(window.innerWidth/2) ,
+								x: northAvatar.getBoundingClientRect().x-(window.innerWidth/2) ,
 								y: northAvatar.getBoundingClientRect().bottom-(window.innerHeight/2),
-								onComplete: context.onCompleteCardDealing(card,i)
+								onComplete: context.onCompleteCardDealingOthers(card,i,randomVar),
+								randVar: randomVar
 							}
 						);
-						//context.cardAnimateTo(card,{i:i,x:x+counter,y:y});
 					break;
 					case 1:
-						//context.cardAnimateTo(card,{i:i,x:eastAvatar.getBoundingClientRect().x,y:eastAvatar.getBoundingClientRect().y});
+						context.cardAnimateTo(
+							card,
+							{
+								i: i,
+								x: eastAvatar.getBoundingClientRect().x-(window.innerWidth/2) ,
+								y: eastAvatar.getBoundingClientRect().bottom-(window.innerHeight/2),
+								onComplete: context.onCompleteCardDealingOthers(card,i,randomVar),
+								randVar: randomVar
+							}
+						);
 					break;
 					case 2:
-						//context.cardAnimateTo(card,{i:i,x:southAvatar.getBoundingClientRect().x,y:southAvatar.getBoundingClientRect().y});
+						context.cardAnimateTo(
+							card,
+							{
+								i: i,
+								x: southAvatar.getBoundingClientRect().x-100+counter-(window.innerWidth/2) ,
+								y: SouthContainer.getBoundingClientRect().top-(window.innerHeight/2),
+								onComplete: context.onCompleteCardDealingCurrentPlayer(card,i,randomVar,{x:southAvatar.getBoundingClientRect().x-100+counter-(window.innerWidth/2),y:SouthContainer.getBoundingClientRect().top-(window.innerHeight/2)}),
+								randVar: randomVar
+							}
+						);
 					break;
 					case 3:
-						//context.cardAnimateTo(card,{i:i,x:westAvatar.getBoundingClientRect().x,y:westAvatar.getBoundingClientRect().y});
+						context.cardAnimateTo(
+							card,
+							{
+								i: i,
+								x: westAvatar.getBoundingClientRect().x-(window.innerWidth/2) ,
+								y: westAvatar.getBoundingClientRect().bottom-(window.innerHeight/2),
+								onComplete: context.onCompleteCardDealingOthers(card,i,randomVar),
+								randVar: randomVar
+							}
+						);
 					break;
 				}
 				
 				if(i%4==0)
-					counter = counter+5;
+					counter = counter+25;
 			})
 		}
 		else{
@@ -125,8 +161,8 @@ class Table extends Component {
 	
 	cardAnimateTo(card,Obj){
 		card.animateTo({
-			delay: 1000 + Obj.i * 2, // wait 1 second + i * 2 ms
-			duration: 5000,
+			delay: 1000 + Obj.randVar, // wait 1 second + i * 2 ms
+			duration: 2000 + Obj.randVar,
 			ease: 'quartOut',
 			
 			x: Obj.x,
@@ -140,10 +176,53 @@ class Table extends Component {
 		//retrieve information.
 	}
 	
-	onCompleteCardDealing(card,index){
-		debugger;
+	onCompleteCardDealingOthers(card,index,randomVar){
 		//hide the cards of others.
+		setTimeout(function(){ card.$el.style.display = "none"; }, 3000 + randomVar);
 	}
+	
+	onCompleteCardDealingCurrentPlayer(card,index,randomVar,position){
+		setTimeout(function(){ card.setSide('front'); }, 3000 + randomVar);
+		
+		card.$el.addEventListener('mouseenter', onMouseEnter);
+		card.$el.addEventListener('mouseleave', onMouseLeave);
+		card.$el.addEventListener('mousedown', onClickCard);
+
+		function onMouseEnter(){
+			card.animateTo({
+				delay: 200,
+				duration: 1000,
+				ease: 'quartOut',
+				
+				x: position.x,
+				y: position.y-20
+			});
+		}
+		
+		function onMouseLeave(){
+			card.animateTo({
+				delay: 200,
+				duration: 1000,
+				ease: 'quartOut',
+				
+				x: position.x,
+				y: position.y
+			});
+		}
+		
+		function onClickCard(){
+			card.animateTo({
+				delay: 500,
+				duration: 1000,
+				ease: 'quartOut',
+				
+				x: position.x,
+				y: position.y
+			});
+		}
+	}
+	
+	
 	
 	render() {
 		hideSplashScreen();
@@ -166,8 +245,7 @@ class Table extends Component {
 			  </Flexbox>
 			 
 			  {/*CENTERAL INNER CONTAINER*/}
-			  <Flexbox flexGrow={4} className="CentralOuterContainer" style={flexCenter}>
-				<Flexbox className="InnerContainer" flexDirection="row" width="100%" height="100%">
+			  <Flexbox flexGrow={4} className="CentralOuterContainer" flexDirection="row" style={{alignItems: 'center'}}>
 				  
 				  {/*WEST PLAYER*/}
 				  <Flexbox flexGrow={2} className="WestContainer">
@@ -179,7 +257,7 @@ class Table extends Component {
 				  </Flexbox>
 				 
 				  {/*CARD AREA*/}
-				  <Flexbox flexGrow={4} className="CardContainer">
+				  <Flexbox flexGrow={4} className="CardContainer" style={{alignItems: 'center', border:'1px solid black'}}>
 					<div 
 						onClick={this.dealCards.bind(this)}
 					>
@@ -214,7 +292,6 @@ class Table extends Component {
 					  Your Name
 					</ListItem>
 				  </Flexbox>
-				</Flexbox>
 			  </Flexbox>
 			 
  				{/*SOUTH PLAYER i.e. YOU*/}
