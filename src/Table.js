@@ -1,8 +1,23 @@
 import React, { Component } from 'react';
+import { connect } from 'react-redux';
+import { withRouter } from 'react-router';
 import Flexbox from 'flexbox-react';
 import { hideSplashScreen } from './LoadMaskHelper.js';
+import FloatingActionButton from 'material-ui/FloatingActionButton';
+import RaisedButton from 'material-ui/RaisedButton';
+import Dialog from 'material-ui/Dialog';
 import Avatar from 'material-ui/Avatar';
 import ListItem from 'material-ui/List/ListItem';
+import NumberInput from 'material-ui-number-input';
+import {
+  Table,
+  TableBody,
+  TableHeader,
+  TableHeaderColumn,
+  TableRow,
+  TableRowColumn,
+} from 'material-ui/Table';
+
 import './Card.css';
 
 const style = {margin: 5};
@@ -32,7 +47,7 @@ Suits:
 
 */
 
-class Table extends Component {
+class GamePlayBoard extends Component {
 	
 	componentDidMount() {
 		var context = this;
@@ -47,6 +62,14 @@ class Table extends Component {
 			
 		}
 	}
+	
+	state = {
+		scoreCardDialogOpen: false,
+		bidDialogOpen: false,
+		bidValue: null,
+		quitGameDialogOpen:false,
+		bidErrorText: ''
+    };
 	
 	deck;
 	cardsObj: {
@@ -77,6 +100,22 @@ class Table extends Component {
 		
 		//context.dealCards();
 	}
+
+	openCloseDialog(type,open){
+		
+		switch(type){
+			case 'ScoreCard':
+				this.setState({scoreCardDialogOpen: open});
+			break;
+			case 'Bid':
+				this.setState({bidDialogOpen: open});
+			break;
+			case 'Quit':
+				this.setState({quitGameDialogOpen: open});
+			break;
+		}
+	
+	}
 	
 	dealCards(){
 		var northAvatar = document.getElementsByClassName('NorthAvatar') ? document.getElementsByClassName('NorthAvatar')[0] : null;
@@ -85,7 +124,10 @@ class Table extends Component {
 		var westAvatar = document.getElementsByClassName('WestAvatar') ? document.getElementsByClassName('WestAvatar')[0] : null;
 		var eastAvatar = document.getElementsByClassName('EastAvatar') ? document.getElementsByClassName('EastAvatar')[0] : null;
 		var southAvatar = document.getElementsByClassName('SouthAvatar') ? document.getElementsByClassName('SouthAvatar')[0] : null;
-		 
+		
+		
+		//Update dealer
+		
 
 		var context = this;
 		var counter=0;
@@ -157,6 +199,13 @@ class Table extends Component {
 		else{
 			//display error
 		}
+		
+		
+		//context.openCloseDialog('ScoreCard',true);
+	}
+	
+	setBid(num){
+		//this.state.bidValue is the entered bid.
 	}
 	
 	cardAnimateTo(card,Obj){
@@ -175,6 +224,52 @@ class Table extends Component {
 	onAvatarClick(){
 		//retrieve information.
 	}
+	
+	onQuitGame(){
+		this.openCloseDialog('Quit',false);
+		this.props.history.push('/home');
+		//move to homepage and give a penalty of 100 coins.
+		//send a quit to all others as well.
+	}
+	
+	
+	/**
+	 * This function opens/closes the floating menu on the bottom left corner.
+	 */
+    openCloseFloatingMenu() {
+        var menuItems = document.getElementsByClassName('toggleOptionsMenuItems');
+        var floatingToggleButton = document.getElementById("floatingToggleButton");
+        var buttonElement = document.getElementById("collapsibleFloatingButton");
+        var len = menuItems.length;
+        var translate = 50; // as the 1st menu button should be little more higher than the spacing between the buttons.
+
+        if (floatingToggleButton.classList.contains('fa-caret-up')) {
+            floatingToggleButton.classList.remove('fa-caret-up');
+            floatingToggleButton.classList.add('fa-caret-down');
+            floatingToggleButton.style.margin = "2px 0px 0px 0px";
+        }
+        else {
+            floatingToggleButton.classList.remove('fa-caret-down');
+            floatingToggleButton.classList.add('fa-caret-up');
+            floatingToggleButton.style.margin = "-2px 0px 0px 0px";
+        }
+
+        if (this.state.menuOpen) {
+            for (var i = 0; i < len; i++) {
+                menuItems[i].style.transform = '';
+            }
+
+            this.setState({ menuOpen: false });
+        }
+        else {
+            for (var j = 0; j < len; j++) {
+                menuItems[j].style.transform = 'translate(0px,' + translate + 'px)';
+                translate = translate + 50;
+            }
+
+            this.setState({ menuOpen: true });
+        }
+    }
 	
 	onCompleteCardDealingOthers(card,index,randomVar){
 		//hide the cards of others.
@@ -222,13 +317,12 @@ class Table extends Component {
 		}
 	}
 	
-	
-	
 	render() {
 		hideSplashScreen();
 	  
 		return (
 		  <div className="Board">
+
 			
 			{/*OUTER CONTAINER*/}
 			<Flexbox className="OuterContainer" flexDirection="column" minHeight="100vh">
@@ -306,9 +400,217 @@ class Table extends Component {
 			  </Flexbox>
 			</Flexbox>
 			
+			{/* Score Dialog */}
+			<Dialog
+			  title="ScoreCard"
+			  autoScrollBodyContent={true}
+			  //modal={true}
+			  open={this.state.scoreCardDialogOpen}
+			  onRequestClose={() => this.openCloseDialog('ScoreCard',false)}
+			>
+			    <Table
+					selectable={false}
+				>
+					<TableHeader
+						displaySelectAll={false}
+					>
+					  <TableRow>
+						<TableHeaderColumn></TableHeaderColumn>
+						<TableHeaderColumn>You & Partner</TableHeaderColumn>
+						<TableHeaderColumn>West & East</TableHeaderColumn>
+					  </TableRow>
+					
+					</TableHeader>
+					
+					<TableBody
+						displayRowCheckbox={false}
+						stripedRows={true}
+					>
+					  <TableRow>
+						<TableRowColumn>Combined Bid</TableRowColumn>
+						<TableRowColumn>John Smith</TableRowColumn>
+						<TableRowColumn>Employed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn>Tricks Taken</TableRowColumn>
+						<TableRowColumn>Randal White</TableRowColumn>
+						<TableRowColumn>Unemployed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn>Bags</TableRowColumn>
+						<TableRowColumn>Stephanie Sanders</TableRowColumn>
+						<TableRowColumn>Employed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn>Bags from last round</TableRowColumn>
+						<TableRowColumn>Steve Brown</TableRowColumn>
+						<TableRowColumn>Employed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn>Total Bags</TableRowColumn>
+						<TableRowColumn>Christopher Nolan</TableRowColumn>
+						<TableRowColumn>Unemployed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn></TableRowColumn>
+						<TableRowColumn><b>SCORING</b></TableRowColumn>
+						<TableRowColumn></TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn>Successful Bids</TableRowColumn>
+						<TableRowColumn>Christopher Nolan</TableRowColumn>
+						<TableRowColumn>Unemployed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn>Bags Score</TableRowColumn>
+						<TableRowColumn>Christopher Nolan</TableRowColumn>
+						<TableRowColumn>Unemployed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn>Failed Nil Bid</TableRowColumn>
+						<TableRowColumn>Christopher Nolan</TableRowColumn>
+						<TableRowColumn>Unemployed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn><b>Points This Round</b></TableRowColumn>
+						<TableRowColumn>Christopher Nolan</TableRowColumn>
+						<TableRowColumn>Unemployed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn><b>Previous Points</b></TableRowColumn>
+						<TableRowColumn>Christopher Nolan</TableRowColumn>
+						<TableRowColumn>Unemployed</TableRowColumn>
+					  </TableRow>
+					  <TableRow>
+						<TableRowColumn><b>Total Points</b></TableRowColumn>
+						<TableRowColumn>Christopher Nolan</TableRowColumn>
+						<TableRowColumn>Unemployed</TableRowColumn>
+					  </TableRow>
+					</TableBody>
+				</Table>
+				<br />
+				
+				
+				
+			</Dialog>
+			
+			
+			{/* Bid Dialog */}
+			<Dialog
+			  title="Bid"
+			  modal={true}
+			  open={this.state.bidDialogOpen}
+			  onRequestClose={() => this.openCloseDialog('Bid',false)}
+			>
+			Please Enter a number between 0-13 <br />
+			  <NumberInput
+				id="num"
+				value={this.state.bidValue}
+				required
+				min={0}
+				max={13}
+				strategy="warn"
+				errorText={this.state.bidErrorText}
+				/>
+				<br />
+				<RaisedButton label="Bid" onClick={this.setBid.bind(this)} primary={true}/>
+			</Dialog>
+			
+			
+			<Dialog
+			  title="Are you sure?"
+			  actions = {[
+					  <RaisedButton
+						label="Cancel"
+						primary={true}
+						onClick={() => this.openCloseDialog('Quit',false)}
+					  />,
+					  <RaisedButton
+						label="Quit"
+						primary={true}
+						onClick={this.onQuitGame.bind(this)}
+					  />,
+			  ]}
+			  modal={true}
+			  open={this.state.quitGameDialogOpen}
+			  onRequestClose={() => this.openCloseDialog('Quit',false)}
+			>
+				If you quit the game then you will receive a ban of <b><u>100 coins</u></b>. Are you sure you want to quit?
+			</Dialog>
+			
+			{/* Main Floating Button */}
+                <FloatingActionButton 
+                    id = "collapsibleFloatingButton"
+                    style = {{
+                        top: '5px',
+                        left: '5px',
+                        position: 'absolute',
+                        zIndex: '10',
+                    }} 
+                    mini = { true }
+                    onClick = { this.openCloseFloatingMenu.bind(this) }
+                >
+                    <i 
+                        id = "floatingToggleButton" 
+                        className = "fa fa-caret-down" 
+                        style = {{
+                            fontSize: '1.8em',
+                            margin: "2px 0px 0px 0px"
+                        }}
+                    /> 
+                </FloatingActionButton>
+
+                {/* Mini Floating Buttons */}
+					
+					{/* This button opens the scorecard. */}
+				<FloatingActionButton 
+                   style = { styles.floatingMiniStyles } 
+                    className = "toggleOptionsMenuItems"
+                    mini = { true }
+                    onClick = {() => this.openCloseDialog('ScoreCard',true) }
+                >
+                    <i className = "fa fa-table" style = {{ fontSize: '1rem'}} />
+                </FloatingActionButton>
+					
+					
+					{/* This button cancels the game and exits. */}
+                <FloatingActionButton 
+                   style = { styles.floatingMiniStyles } 
+                    className = "toggleOptionsMenuItems"
+                    mini = { true }
+                    onClick = {() => this.openCloseDialog('Quit',true) }
+                >
+                    <i className = "fa fa-times" style = {{ fontSize: '1rem'}} />
+                </FloatingActionButton>
+				
+			
 		  </div>
 		);
   }
 }
 
-export default Table;
+
+/**
+ * Local styling
+ **/
+const styles = {
+	floatingMiniStyles: {
+		top: '5px',
+		left: "5px",
+		position: 'absolute',
+		zIndex: '5',
+        transition: '0.5s'
+	}
+};
+
+
+/**
+ * Maps portions of the store to props of your choosing
+ * @param state: passed down through react-redux's 'connect'
+ **/
+const mapStateToProps = function(state){
+  return {
+  }
+}
+
+export default withRouter(connect(mapStateToProps,null,null,{withRef:true})(GamePlayBoard));

@@ -4,11 +4,14 @@ import { Provider } from 'react-redux';
 import { createStore, combineReducers } from 'redux';
 import App from './App';
 import registerServiceWorker from './registerServiceWorker';
+import 'font-awesome/css/font-awesome.min.css';
+import injectTapEventPlugin from 'react-tap-event-plugin';
 import RedirectRouter from './Router.js';
 
 import './index.css';
 
 
+injectTapEventPlugin();
 
 /**
  * The initial state of the store (prior to loading table data)
