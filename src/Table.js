@@ -413,6 +413,7 @@ class GamePlayBoard extends Component {
 				>
 					<TableHeader
 						displaySelectAll={false}
+						adjustForCheckbox={false}
 					>
 					  <TableRow>
 						<TableHeaderColumn></TableHeaderColumn>
