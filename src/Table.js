@@ -5,6 +5,7 @@ import Flexbox from 'flexbox-react';
 import { hideSplashScreen } from './LoadMaskHelper.js';
 import FloatingActionButton from 'material-ui/FloatingActionButton';
 import RaisedButton from 'material-ui/RaisedButton';
+import ComponentLoadMask from './ComponentLoadMask.js';
 import Dialog from 'material-ui/Dialog';
 import Avatar from 'material-ui/Avatar';
 import ListItem from 'material-ui/List/ListItem';
@@ -49,6 +50,8 @@ Suits:
 
 class GamePlayBoard extends Component {
 	
+	
+	//if(this.props.GameInfo.gameInitiator == this.props.CurrentPlayerInfo.playerId) means that this is the server. Meaning all deals will happend here and then distributed to the players.
 	componentDidMount() {
 		var context = this;
 		var centralContainerHeight = document.getElementsByClassName('CentralOuterContainer') ? document.getElementsByClassName('CentralOuterContainer')[0].clientHeight : "350px";
@@ -59,7 +62,6 @@ class GamePlayBoard extends Component {
 		
 		window.onload = function(e){ 
 			context.renderInitialDeck(context);
-			
 		}
 	}
 	
@@ -131,8 +133,6 @@ class GamePlayBoard extends Component {
 
 		var context = this;
 		var counter=0;
-		//var x = northAvatar.getBoundingClientRect().x - eastAvatar.getBoundingClientRect().x;
-		//var y = northAvatar.getBoundingClientRect().y - eastAvatar.getBoundingClientRect().y;
 		var randomVar;
 		if(northAvatar && westAvatar && eastAvatar && southAvatar){
 			this.deck.cards.forEach(function (card, i) {
@@ -202,6 +202,10 @@ class GamePlayBoard extends Component {
 		
 		
 		//context.openCloseDialog('ScoreCard',true);
+	}
+	
+	dealCardsForPlayer(){
+		
 	}
 	
 	setBid(num){
@@ -322,6 +326,22 @@ class GamePlayBoard extends Component {
 	  
 		return (
 		  <div className="Board">
+		  
+			<div 
+				style = {{ 
+					position: "fixed",
+					width: "100%",
+					height: "100%",
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					backgroundColor: "rgba(0,0,0,.5)",
+					zIndex: 12,
+					display: (this.props.GameInfo.turn == this.props.CurrentPlayerInfo.playerId ? "none" : "") 
+				}}
+			>
+			</div>
 
 			
 			{/*OUTER CONTAINER*/}
@@ -365,6 +385,26 @@ class GamePlayBoard extends Component {
 							height: '100%'
 						}}
 					>
+					{	this.props.GameInfo.turn == this.props.CurrentPlayerInfo.playerId ?
+						<h2> Please Select A Card To Play By Clicking On It. </h2>
+						: null
+					}
+						<div 
+							style = {{ 
+								position: "fixed",
+								width: "100%",
+								height: "100%",
+								top: 0,
+								left: 0,
+								right: 0,
+								bottom: 0,
+								backgroundColor: "rgba(0,0,0,.5)",
+								zIndex: 12,
+								display: (this.props.GameInfo.gameReady ? "none" : "") 
+							}}
+						>
+                                    <ComponentLoadMask bgColor="a" message="Please wait while other players join."/>
+                        </div>
 						<div 
 							id="container"
 							style={{
@@ -393,9 +433,9 @@ class GamePlayBoard extends Component {
 				{/* empty space */}
 				<Flexbox flexGrow={10} />
 				<ListItem
-				  leftAvatar={<Avatar className="SouthAvatar">YN</Avatar>}
+				  leftAvatar={<Avatar className="SouthAvatar">{this.props.UserInfo.infoDetails.name[0]}</Avatar>}
 				>
-				  Your Name
+					{this.props.UserInfo.infoDetails.name}
 				</ListItem>
 			  </Flexbox>
 			</Flexbox>
@@ -611,6 +651,9 @@ const styles = {
  **/
 const mapStateToProps = function(state){
   return {
+	  UserInfo: state.globalObject.UserInfo,
+	  GameInfo: state.globalObject.GameInfo,
+	  CurrentPlayerInfo: state.globalObject.CurrentPlayerInfo
   }
 }
 

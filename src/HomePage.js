@@ -8,6 +8,7 @@ import TextField from 'material-ui/TextField';
 import IconButton from 'material-ui/IconButton';
 import Avatar from 'material-ui/Avatar';
 import Dialog from 'material-ui/Dialog';
+import ComponentLoadMask from './ComponentLoadMask.js';
 import RefreshIndicator from 'material-ui/RefreshIndicator';
 import {
   Table,
@@ -29,12 +30,7 @@ class HomePage extends React.Component {
 	state = {
 		passwordPromptDialogOpen: false,
 		activeGamesList:[],
-		selectedGameListIndex: null,
-		historyGamesList:[],
-		coins: 1000,
-		playerName: 'Aditya Trivedi',
-		winLoss: "10/9",
-		gamesPlayed: 10
+		selectedGameListIndex: null
     };
 	
 	componentDidMount(){
@@ -51,26 +47,6 @@ class HomePage extends React.Component {
 			nameOfInitiatingPlayer: 'Aditya Trivedi',
 			numOfPlayers: '3/4',
 			passwordProtected: false
-		}];
-		
-		var historyGamesList = [{
-			id:'G001',
-			result: 'win',
-			score: '500/250',
-			date: '02/02/2017',
-			coinsEarned: 100
-		},{
-			id:'G010',
-			result: 'loss',
-			date: '02/02/2017',
-			score: '250/500',
-			coinsEarned: 10
-		},{
-			id:'G001',
-			result: 'win',
-			date: '02/02/2017',
-			score: '500/250',
-			coinsEarned: 100
 		}];
 		
 		this.setState({activeGamesList: activeGamesList});
@@ -139,15 +115,15 @@ class HomePage extends React.Component {
 	createHistoryRows(list){
 		var rows=[];
 		
-		for(var index=0;index<this.state.historyGamesList.length;index++)
+		for(var index=0;index<this.props.UserInfo.historyGamesList.length;index++)
 		{
 			let temp = index;
 			rows.push(
 				<TableRow key = { index } style = {{ height:'24px' }}>
-					<TableRowColumn>{this.state.historyGamesList[index].date}</TableRowColumn>
-					<TableRowColumn>{this.state.historyGamesList[index].result}</TableRowColumn>
-					<TableRowColumn>{this.state.historyGamesList[index].score}</TableRowColumn>
-					<TableRowColumn>{this.state.historyGamesList[index].coinsEarned}</TableRowColumn>
+					<TableRowColumn>{this.props.UserInfo.historyGamesList[index].date}</TableRowColumn>
+					<TableRowColumn>{this.props.UserInfo.historyGamesList[index].result}</TableRowColumn>
+					<TableRowColumn>{this.props.UserInfo.historyGamesList[index].score}</TableRowColumn>
+					<TableRowColumn>{this.props.UserInfo.historyGamesList[index].coinsEarned}</TableRowColumn>
 				</TableRow>
 			);
 		}
@@ -218,7 +194,7 @@ class HomePage extends React.Component {
 									display: 'inline-block',
 								}}
 							>
-								<h1>{this.state.playerName}</h1>
+								<h1>{this.props.UserInfo.infoDetails.name}</h1>
 								<br />
 								<hr />
 								
@@ -240,7 +216,7 @@ class HomePage extends React.Component {
 										}}
 									>
 										<h2>Games Played </h2> <br />
-										 <span style={{fontSize: "25px"}}> {this.state.gamesPlayed} < /span>
+										 <span style={{fontSize: "25px"}}> {this.props.UserInfo.userStatistics.gamesPlayed} < /span>
 									</Flexbox>
 									
 									<Flexbox 
@@ -252,7 +228,7 @@ class HomePage extends React.Component {
 										}}
 									>
 										<h2> Win/Loss </h2><br />
-										<span style={{fontSize: "25px"}}> {this.state.winLoss} </span>
+										<span style={{fontSize: "25px"}}> {this.props.UserInfo.userStatistics.winLoss} </span>
 									</Flexbox>
 									
 									<Flexbox 
@@ -264,7 +240,7 @@ class HomePage extends React.Component {
 										}}
 									>
 										<h2> Coins </h2> <br />
-										<span style={{fontSize: "40px"}}> {this.state.coins} </span>
+										<span style={{fontSize: "40px"}}> {this.props.UserInfo.userStatistics.coins} </span>
 									</Flexbox>
 									
 								</Flexbox>
@@ -417,7 +393,7 @@ class HomePage extends React.Component {
  **/
 const mapStateToProps = function(state){
   return {
-	  userInfo: state.UserInfo
+	  UserInfo: state.globalObject.UserInfo
   }
 }
 
