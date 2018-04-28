@@ -72,9 +72,8 @@ class Login extends React.Component {
     /**
      * -ADCMT
      * @param evt: -ADCMT
-     * @param context: -ADCMT
      **/
-    authenticate = (evt, context) => {
+    authenticate = (evt) => {
         var username = document.getElementById('UserText').value;
         var password = document.getElementById('PassText').value;
         var url = 'login?username=' + username + "&password=" + password;
@@ -85,7 +84,7 @@ class Login extends React.Component {
         lblErrPass.hidden = true;
         
         // Server call to check user/pass and update state.
-        makeServerCall(url, context.onServerResponse, {onServerCallError: context.showMaintanencePage} );
+        makeServerCall(url, this.onServerResponse, {onServerCallError: this.showMaintanencePage} );
     }
 
 
@@ -116,16 +115,15 @@ class Login extends React.Component {
 
         if (result && result.status == 'success') { 
             // Save the details to store
-            if (result.userInformation) {
-                result.userInformation.loggedInTime = new Date();
-                result.userInformation.idleTime = 0;
+            if (result.UserInfo) {
+                result.UserInfo.loggedInTime = new Date();
+                result.UserInfo.idleTime = 0;
             }
 
-            console.log(result);
-            this.saveUserInfo(result.userInformation, result.funnelInfo, result.savedViews);
+            this.saveUserInfo(result.UserInfo);
         }
 
-        else if (result && result.status == "failure") {
+        else if (result && result.status == "failed") {
             console.log('Error');
             lblErrPass.hidden = false;
             lblErrPass.innerText = "Incorrect Username/Password";
@@ -144,10 +142,9 @@ class Login extends React.Component {
      * @param userInfo: -ADCMT
      * @param funnelInfo: -ADCMT
      **/
-    saveUserInfo = (userInfo, funnelInfo, savedViews) => {
+    saveUserInfo = (userInfo) => {
         console.log('Success');
-        this.setState({ openPassword: false });
-        this.props.dispatch(saveUserInfo(userInfo, funnelInfo, savedViews));
+        this.props.dispatch(saveUserInfo(userInfo));
 
         // Call function post login if provided.
         if (typeof this.props.doAfterLogin == 'function') {
@@ -210,10 +207,10 @@ class Login extends React.Component {
 					
 					<Flexbox className="ButtonContainer" flexDirection="row">
 						<Flexbox flexGrow={5}>
-							<RaisedButton label="Reset" secondary={true} onClick={this.authenticate.bind(this)} fullWidth={true}/>
+							<RaisedButton label="Reset" secondary={true} onClick={this.onClickReset} fullWidth={true}/>
 						</Flexbox>
 						<Flexbox flexGrow={5}>
-							<RaisedButton label="Login" primary={true} onClick={this.onClickReset} fullWidth={true}/>
+							<RaisedButton label="Login" primary={true}  onClick={this.authenticate.bind(this)} fullWidth={true}/>
 						</Flexbox>
 					</Flexbox>
 					
@@ -242,11 +239,9 @@ class Login extends React.Component {
 /**
  * Constants defined to make dispatching for the redux store consistent
  **/
-export const saveUserInfo = (userInfo, funnelInfo, savedViews) => ({
+export const saveUserInfo = (userInfo) => ({
     type: 'SAVE_USER_INFO',
-    userInfo,
-    funnelInfo,
-    savedViews
+    userInfo
 });
 
 
@@ -256,7 +251,7 @@ export const saveUserInfo = (userInfo, funnelInfo, savedViews) => ({
  **/
 const mapStateToProps = function(state){
   return {
-    settings: state.filterState.Settings
+	  UserInfo: state.globalObject.UserInfo
   }
 }
 

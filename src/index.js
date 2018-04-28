@@ -18,50 +18,49 @@ injectTapEventPlugin();
  **/
 const initialStore = {
     UserInfo: {
-		infoDetails:{
-			name:'Aditya Trivedi',
-			email: 'atrived4@gmu.edu',
-			dob: '23/07/1992',
-			
-		},
-		historyGamesList:[{
-				id:'G001',
-				result: 'win',
-				score: '500/250',
-				date: '02/02/2017',
-				coinsEarned: 100
-			},{
-				id:'G010',
-				result: 'loss',
-				date: '02/02/2017',
-				score: '250/500',
-				coinsEarned: 10
-			},{
-				id:'G001',
-				result: 'win',
-				date: '02/02/2017',
-				score: '500/250',
-				coinsEarned: 100
-			}
-		],
-		userStatistics:{
-			gamesPlayed: 20,
-			winLoss: "19/1",
-			coins: 1000
-		},
+		infoDetails:{},
+		historyGamesList:[],
+		userStatistics:{}
 	},
 	GameInfo: {
-		gameReady: true,
-		gameId: 'G001',
-		gameInitiator: 'P1',
-		turn: 'P1',
-		cards:{
-			P1:[],
-			P2:[],
-			P3:[],
-			P4:[]
+		gameReady: false,
+		score:{
+			"team1": 0,
+			"team2": 0
 		},
-		dealer: 'P4'
+		round:{
+			currentRound: 2,
+			turn: 'P1',
+			roundHistory:{
+				1:{
+					"Team1":{
+						bid: 5,
+						blindbid:{
+							playerId: 1
+						},
+						completedBids: 2
+					},
+					"Team2":{
+						bid: 7,
+						completedBids: 4
+					},
+				},
+				2:{
+					"Team1":{
+						bid: 5,
+						blindbid:{
+							playerId: 1
+						},
+						completedBids: 2
+					},
+					"Team2":{
+						bid: 7,
+						completedBids: 4
+					},
+				}
+			},
+			dealer: 'P4'
+		}
 	},
 	CurrentPlayerInfo: {
 		playerId: 'P1',
@@ -93,7 +92,26 @@ const globalReducer = function(state = initialStore, action) {
 		case 'SAVE_USER_INFO':
             return {
                 ...state,
+                UserInfo: action.userInfo,
+				isUserLoggedIn: true
+            }
+			
+		case 'UPDATE_GAME_INFO':
+            return {
+                ...state,
                 Filter: action.storeFilterStruc,
+            }
+			
+		case 'SAVE_GAME_INFO':
+			return {
+                ...state,
+                GameInfo: action.gameInfo,
+            }
+			
+		case 'SAVE_CURRENTPLAYER_INFO':
+			return {
+                ...state,
+                CurrentPlayerInfo: action.CurrentPlayerInfo,
             }
 			
 			/*{ 

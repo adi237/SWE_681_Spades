@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import { hideSplashScreen } from './LoadMaskHelper.js';
 import FloatingActionButton from 'material-ui/FloatingActionButton';
 import { withRouter } from 'react-router-dom';
+import Checkbox from 'material-ui/Checkbox';
 import RaisedButton from 'material-ui/RaisedButton';
 import TextField from 'material-ui/TextField';
 import IconButton from 'material-ui/IconButton';
@@ -29,37 +30,48 @@ class HomePage extends React.Component {
 	
 	state = {
 		passwordPromptDialogOpen: false,
+		createNewGamePasswordDialogOpen: false,
 		activeGamesList:[],
+		newGamePassword: null,
+		passwordProtection: false,
 		selectedGameListIndex: null
     };
 	
 	componentDidMount(){
 		//make call to get the list of active games and then update the state.
 		//make call to get the data from the server and then create rows.
-		var activeGamesList = [{
-			id:'G001',
-			nameOfInitiatingPlayer: 'Jhanvi Rafalia',
-			numOfPlayers: '0/4',
-			passwordProtected: true,
-			password: 'qwerty'
-		},{
-			id:'G002',
-			nameOfInitiatingPlayer: 'Aditya Trivedi',
-			numOfPlayers: '3/4',
-			passwordProtected: false
-		}];
-		
-		this.setState({activeGamesList: activeGamesList});
+		this.refreshActiveGameList(this);
 	}
 	
 	gotoGamePlayArea(){
 		this.props.history.push('/game');
 	}
 	
-	onSuccessJoinGame(){
+	onSuccessJoinGame(cont){
 		
 		//Make Servercall indicating the request of user to join.
-		this.gotoGamePlayArea();
+		var url = 'joinGame?gid=' + this.state.activeGamesList[this.state.selectedGameListIndex].id;
+		var context = cont ? cont : this;
+		makeServerCall(url, function(response, options){
+			
+			var result; 
+        
+			try {
+				result = JSON.parse(response);
+			}
+			catch(e) {
+				result = null;
+			}
+			
+			if(result && result.joined){
+				context.props.dispatch(saveGameInfo(result.GameInfo));
+				context.props.dispatch(saveCurrentPlayerInfo(result.currentPlayerInfo));
+				context.gotoGamePlayArea();
+			}
+			
+		});
+		
+		
 	}
 	
 	openCloseDialog(type,open){
@@ -68,18 +80,36 @@ class HomePage extends React.Component {
 			case 'PasswordPrompt':
 				this.setState({passwordPromptDialogOpen: open});
 			break;
+			case 'newGamePassword':
+				this.setState({createNewGamePasswordDialogOpen: open,passwordProtection: false});
+			break;
 		}
 	
 	}
 	
-	refreshActiveGameList(){
-		//make server call to get the list of active games
-		//set the state of active games.
-		this.setState({activeGamesList: []});
+	refreshActiveGameList(context){
+				
+		var url = 'fetchActiveGamesList';
+		makeServerCall(url, function(response, options){
+			
+			var result; 
+        
+			try {
+				result = JSON.parse(response);
+			}
+			catch(e) {
+				result = null;
+			}
+			
+			result == null ? context.setState({activeGamesList: []}) : context.setState({activeGamesList: result});
+		});
+		
+		
 	}
 	
 	createActiveGameRows(){
 		var rows = [];
+		var context = this;
 		for(var index=0;index<this.state.activeGamesList.length;index++)
 		{
 			let temp = index;
@@ -101,7 +131,13 @@ class HomePage extends React.Component {
 							<RaisedButton 
 								primary={true} 
 								label="Join" 
-								onClick={this.onSuccessJoinGame.bind(this)}
+								onClick={() => {
+									this.setState(
+											{selectedGameListIndex: temp}, 
+											() => this.onSuccessJoinGame(context)
+										);
+									} 
+								}
 							/>
 						}
 					</TableRowColumn>
@@ -131,6 +167,28 @@ class HomePage extends React.Component {
 		return rows;
 	}
 	
+	startNewGame(password) {
+		//makeServerCall to star to new game
+		var url = 'createNewGame?password='+password;
+		var context=this;
+		makeServerCall(url, function(response, options){
+			
+			var result; 
+        
+			try {
+				result = JSON.parse(response);
+			}
+			catch(e) {
+				result = null;
+			}
+			
+			if(result != null){
+				context.props.dispatch(saveGameInfo(result));
+				context.gotoGamePlayArea();
+			}
+		});
+	}
+	
 	render() {
 		hideSplashScreen();
 		var activeGamesRows = this.createActiveGameRows();
@@ -138,17 +196,6 @@ class HomePage extends React.Component {
 		var context = this;
 		return (
 			<div>
-			{/*<AppBar
-					title={
-						<div onClick={this.gotoGamePlayArea.bind(this)}>
-							Welcome To Spades
-						</div>
-					}
-					iconElementLeft={<div />}
-				/>*/}
-				
-				
-				
 				<Flexbox className="HomeOuterContainer" flexDirection="column" minHeight="100vh">
 					<Flexbox className="HomeTopOuterContainer" flexDirection="row" flexGrow={1} >
 						
@@ -240,7 +287,7 @@ class HomePage extends React.Component {
 										}}
 									>
 										<h2> Coins </h2> <br />
-										<span style={{fontSize: "40px"}}> {this.props.UserInfo.userStatistics.coins} </span>
+										<span style={{fontSize: "35px"}}> {this.props.UserInfo.userStatistics.coins} </span>
 									</Flexbox>
 									
 								</Flexbox>
@@ -312,7 +359,10 @@ class HomePage extends React.Component {
 										<TableHeaderColumn>Initiating Player</TableHeaderColumn>
 										<TableHeaderColumn>Players</TableHeaderColumn>
 										<TableHeaderColumn>Password Protected</TableHeaderColumn>
-										<TableHeaderColumn><RaisedButton primary={true} label="Refresh" onClick={this.refreshActiveGameList.bind(this)}/></TableHeaderColumn>
+										<TableHeaderColumn>
+											<RaisedButton primary={true} label="Refresh" onClick={() => this.refreshActiveGameList(this)}/> &nbsp;
+											<RaisedButton primary={true} label="New Game" onClick={() => this.openCloseDialog('newGamePassword',true)}/>
+										</TableHeaderColumn>
 									  </TableRow>
 									
 									</TableHeader>
@@ -338,7 +388,7 @@ class HomePage extends React.Component {
 				  open={this.state.passwordPromptDialogOpen}
 				  onRequestClose={() => this.openCloseDialog('PasswordPrompt',false)}
 				>
-				This game is password protected. Please note that all passowords are a maximum of 10 characters. Please enter the password. <br />
+				This game is password protected. Please note that all passwords are a maximum of 10 characters and only alphanumeric. Please enter the password. <br />
 					<TextField
 					  id="gameJoinPassword"
 					  type="password"
@@ -361,6 +411,48 @@ class HomePage extends React.Component {
 						primary={true}/>
 				</Dialog>
 				
+				
+				
+				{/* New Game Password Prompt Dialog */}
+				<Dialog
+				  title="Please Enter a password"
+				  modal={false}
+				  open={this.state.createNewGamePasswordDialogOpen}
+				  onRequestClose={() => this.openCloseDialog('newGamePassword',false)}
+				>
+				If you want to make this game password protected please select the checkbox and enter a password. 
+				Please note that all passwords are a maximum of 10 characters and only alphanumeric.<br />
+					<Checkbox
+					  label="Password Protected"
+					  checked={this.state.passwordProtection}
+					  onCheck={(evt,isInputChecked) => {
+						  this.setState({passwordProtection: isInputChecked});
+					  }}
+					/>
+					<br />
+					<TextField
+					  id="gameCreatePassword"
+					  disabled={this.state.passwordProtection ? false : true}
+					  type="password"
+					/><br />
+					<label id="err" style={{color:'red'}}>{context.state.lblErrText2}</label>
+					<RaisedButton 
+						label="Create New Game" 
+						onClick={() => {
+								context.setState({lblErrText2: ""});
+								var str = document.getElementById('gameCreatePassword').value;
+								if(!this.state.passwordProtection || (str.length < 11 && str.match(/^[a-z0-9]+$/i))) //add regex for alphanumeric check.
+								{
+									context.openCloseDialog('newGamePassword',false);
+									//make server call for player to join.
+									context.startNewGame(str);
+								}else{
+									context.setState({lblErrText2: "Please follow the password guidelines."});
+								}
+							}
+						} 
+						primary={true}/>
+				</Dialog>
 				
 				
 				<FloatingActionButton 
@@ -386,6 +478,18 @@ class HomePage extends React.Component {
 	}
 }
 
+/**
+ * Constants defined to make dispatching for the redux store consistent
+ **/
+export const saveGameInfo = (gameInfo) => ({
+    type: 'SAVE_GAME_INFO',
+    gameInfo
+});
+
+export const saveCurrentPlayerInfo = (CurrentPlayerInfo) => ({
+    type: 'SAVE_CURRENTPLAYER_INFO',
+    CurrentPlayerInfo
+});
 
 /**
  * Maps portions of the store to props of your choosing
@@ -393,7 +497,8 @@ class HomePage extends React.Component {
  **/
 const mapStateToProps = function(state){
   return {
-	  UserInfo: state.globalObject.UserInfo
+	  UserInfo: state.globalObject.UserInfo,
+	  GameInfo: state.globalObject.GameInfo
   }
 }
 

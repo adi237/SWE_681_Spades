@@ -21,6 +21,40 @@
     -->
     <title>React App</title>
 	<script src="https://deck-of-cards.js.org/dist/deck.min.js"></script>
+	<script>
+		var isIE = /*@cc_on!@*/false || !!document.documentMode;
+			
+			if(isIE){
+				String.prototype.includes = function(value){
+					return this.indexOf(value)>-1
+				}
+			}
+			
+			Array.prototype.unique = function() {
+				var a = this.concat();
+				for(var i=0; i<a.length; ++i) {
+					for(var j=i+1; j<a.length; ++j) {
+						if(a[i] === a[j])
+							a.splice(j--, 1);
+					}
+				}
+
+				return a;
+			};
+		
+			window.SERVER_URL = window.location.hostname.includes('localhost') || window.location.hostname.includes('192.168') || window.location.hostname.includes('ec2') ? "https://ec2-34-227-161-141.compute-1.amazonaws.com:5001/" : "http://"+window.location.hostname + ":5001/";
+            window.APP_MODE = window.location.href.includes('localhost') ? 'DEVELOPMENT' : 'PRODUCTION';
+            var logoutUrl = window.APP_MODE == 'DEVELOPMENT' ? '/logout' : window.SERVER_URL+'logout';
+			
+			/*window.onbeforeunload = function() {
+                var xmlHttp = new XMLHttpRequest();
+				console.log("onbeforeunload");
+				xmlHttp.withCredentials = true;
+                xmlHttp.open("GET", logoutUrl, false);
+                xmlHttp.send(null);
+            }*/
+	</script>
+	
 	<!--<link rel="stylesheet" href="https://deck-of-cards.js.org/example.css" /> -->
 	<style type = "text/css">
 
@@ -30,6 +64,7 @@
 
           html, body {
               font-weight: 300;
+			  overflow: auto !important;
               height: 100%;
               margin: 0;
               padding: 0;

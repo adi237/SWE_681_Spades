@@ -29,8 +29,7 @@ class ApplicationRouter extends React.Component{
         var loggedIn = jsonRes ? jsonRes.isUserLoggedIn : false;
         
         if (loggedIn && jsonRes) {
-            //setCookie(getLoginCookieName(),1,0.5);
-            context.props.dispatch(saveUserInfo(jsonRes.userInformation,jsonRes.funnelInfo));
+            context.props.dispatch(saveUserInfo(jsonRes.UserInfo));
             isUserLoggedIn=true;
         }
     }
@@ -88,7 +87,7 @@ class ApplicationRouter extends React.Component{
 
                         <Route exact path = "/" component = { this.RedirectToLogin } />
 
-                        <Route exact path = "/home" component = { this.TableView } />
+                        <Route exact path = "/home" component = { this.HomeView } />
 
                         <Route exact path = "/game" component = { this.TableView } />
 						
@@ -110,7 +109,7 @@ class ApplicationRouter extends React.Component{
 /**
  * Constants defined to make dispatching for the redux store consistent
  **/
-export const saveUserInfo = (userInfo, funnelInfo) => ({
+export const saveUserInfo = (userInfo) => ({
     type: 'SAVE_USER_INFO',
     userInfo
 });
@@ -122,8 +121,8 @@ export const saveUserInfo = (userInfo, funnelInfo) => ({
 **/
 const mapStateToProps = function (state) {
     return {
-        userInfo: state.filterState.UserInfo,
-        isUserLoggedIn: state.filterState.isUserLoggedIn
+        UserInfo: state.globalObject.UserInfo,
+        isUserLoggedIn: state.globalObject.isUserLoggedIn
     }
 }
 

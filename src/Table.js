@@ -7,9 +7,11 @@ import FloatingActionButton from 'material-ui/FloatingActionButton';
 import RaisedButton from 'material-ui/RaisedButton';
 import ComponentLoadMask from './ComponentLoadMask.js';
 import Dialog from 'material-ui/Dialog';
+import socketIOClient from 'socket.io-client'
 import Avatar from 'material-ui/Avatar';
 import ListItem from 'material-ui/List/ListItem';
 import NumberInput from 'material-ui-number-input';
+import { makeServerCall } from './ServerCallHelper.js';
 import {
   Table,
   TableBody,
@@ -65,6 +67,10 @@ class GamePlayBoard extends Component {
 		}
 	}
 	
+	deck;
+	endpoint = "https://ec2-34-227-161-141.compute-1.amazonaws.com:5001"
+	socket = socketIOClient(this.endpoint);
+	//socket.emit(eventName, msg);
 	state = {
 		scoreCardDialogOpen: false,
 		bidDialogOpen: false,
@@ -72,15 +78,6 @@ class GamePlayBoard extends Component {
 		quitGameDialogOpen:false,
 		bidErrorText: ''
     };
-	
-	deck;
-	cardsObj: {
-		P1: [],
-		P2: [],
-		P3: [],
-		P4: [],
-		currentPlayer: ''
-	}
 	
 	renderInitialDeck(context){
 		
@@ -199,9 +196,6 @@ class GamePlayBoard extends Component {
 		else{
 			//display error
 		}
-		
-		
-		//context.openCloseDialog('ScoreCard',true);
 	}
 	
 	dealCardsForPlayer(){
@@ -233,9 +227,39 @@ class GamePlayBoard extends Component {
 		this.openCloseDialog('Quit',false);
 		this.props.history.push('/home');
 		//move to homepage and give a penalty of 100 coins.
+		
+		if(this.props.GameInfo.gameReady)
+		{
+			//penalty of 100 coins.
+		}
+		else{
+			// no penalty as game did not start.
+			this.finishGame(true);
+		}
+		
 		//send a quit to all others as well.
+		
+		//end the game for everyone.
+		//emit end message.
 	}
 	
+	finishGame(properEnd){
+		var url = 'finishGame?gid=' + this.props.GameInfo.gameId + "&properEnd="+properEnd;
+		makeServerCall(url, function(response, options){
+			
+			var result; 
+        
+			try {
+				result = JSON.parse(response);
+			}
+			catch(e) {
+				result = null;
+			}
+			
+			
+			
+		});
+	}
 	
 	/**
 	 * This function opens/closes the floating menu on the bottom left corner.
@@ -315,15 +339,25 @@ class GamePlayBoard extends Component {
 				duration: 1000,
 				ease: 'quartOut',
 				
-				x: position.x,
-				y: position.y
+				x: 100,
+				y: 100
 			});
 		}
 	}
 	
 	render() {
 		hideSplashScreen();
-	  
+		var context=this;
+		this.socket.on("gameReady",(msg) => {
+			try{
+				var tempResult = JSON.parse(msg);
+				context.props.dispatch(saveGameInfo(tempResult));
+			}
+			catch(err){
+				console.log(err);
+			}
+		});
+		
 		return (
 		  <div className="Board">
 		  
@@ -338,9 +372,10 @@ class GamePlayBoard extends Component {
 					bottom: 0,
 					backgroundColor: "rgba(0,0,0,.5)",
 					zIndex: 12,
-					display: (this.props.GameInfo.turn == this.props.CurrentPlayerInfo.playerId ? "none" : "") 
+					display: (this.props.GameInfo.gameReady ? (this.props.GameInfo.round.turn == this.props.CurrentPlayerInfo.playerId ? "none" : "") : "none") 
 				}}
 			>
+				PLEASE WAIT FOR YOUR TURN.
 			</div>
 
 			
@@ -351,9 +386,9 @@ class GamePlayBoard extends Component {
 			  <Flexbox className="NorthOuterContainer" flexDirection="column" element="header" flexGrow={2} style={flexCenter}>
 				
 				<ListItem
-				  leftAvatar={<Avatar className="NorthAvatar">YN</Avatar>}
+				  leftAvatar={<Avatar className="NorthAvatar">{this.props.GameInfo.gameReady ? (this.props.CurrentPlayerInfo.playerId == "P1" ? this.props.GameInfo.players[1].uname[0] : this.props.GameInfo.players[0].uname[0] ) : "?"}</Avatar>}
 				>
-				  Your Name
+					{this.props.GameInfo.gameReady ? (this.props.CurrentPlayerInfo.playerId == "P1" ? this.props.GameInfo.players[1].uname : this.props.GameInfo.players[0].uname ) : "?"}
 				</ListItem>
 				
 			  </Flexbox>
@@ -363,11 +398,6 @@ class GamePlayBoard extends Component {
 				  
 				  {/*WEST PLAYER*/}
 				  <Flexbox flexGrow={2} className="WestContainer">
-					<ListItem
-					  leftAvatar={<Avatar className="WestAvatar">YN</Avatar>}
-					>
-					  Your Name
-					</ListItem>
 				  </Flexbox>
 				 
 				  {/*CARD AREA*/}
@@ -385,7 +415,10 @@ class GamePlayBoard extends Component {
 							height: '100%'
 						}}
 					>
-					{	this.props.GameInfo.turn == this.props.CurrentPlayerInfo.playerId ?
+					
+					{/*<button onClick={() => this.emitSocketMessage('cardPlayed',{a:'b'})}>Change Color</button>*/}
+					
+					{	this.props.GameInfo.round.turn == this.props.CurrentPlayerInfo.playerId ?
 						<h2> Please Select A Card To Play By Clicking On It. </h2>
 						: null
 					}
@@ -399,7 +432,7 @@ class GamePlayBoard extends Component {
 								right: 0,
 								bottom: 0,
 								backgroundColor: "rgba(0,0,0,.5)",
-								zIndex: 12,
+								zIndex: 5,
 								display: (this.props.GameInfo.gameReady ? "none" : "") 
 							}}
 						>
@@ -420,11 +453,6 @@ class GamePlayBoard extends Component {
 				  <Flexbox flexGrow={2} className="EastContainer">
 					  {/* empty space */}
 					<Flexbox flexGrow={10} />
-					<ListItem
-					  leftAvatar={<Avatar className="EastAvatar">YN</Avatar>}
-					>
-					  Your Name
-					</ListItem>
 				  </Flexbox>
 			  </Flexbox>
 			 
@@ -644,6 +672,18 @@ const styles = {
 	}
 };
 
+/**
+ * Constants defined to make dispatching for the redux store consistent
+ **/
+export const saveGameInfo = (gameInfo) => ({
+    type: 'SAVE_GAME_INFO',
+    gameInfo
+});
+
+export const setPlayersOnBoardGS = (PlayersOnBoard) => ({
+    type: 'SET_PLAYERS_ON_BOARD',
+    PlayersOnBoard
+});
 
 /**
  * Maps portions of the store to props of your choosing
@@ -653,7 +693,8 @@ const mapStateToProps = function(state){
   return {
 	  UserInfo: state.globalObject.UserInfo,
 	  GameInfo: state.globalObject.GameInfo,
-	  CurrentPlayerInfo: state.globalObject.CurrentPlayerInfo
+	  CurrentPlayerInfo: state.globalObject.CurrentPlayerInfo,
+	  PlayersOnBoard : state.globalObject.PlayersOnBoard,
   }
 }
 

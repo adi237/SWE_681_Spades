@@ -1,9 +1,13 @@
 import React from 'react';
+import { hideSplashScreen } from './LoadMaskHelper.js';
 import Dialog from 'material-ui/Dialog';
 
 class Maintenance extends React.Component {
     
     render() {
+		
+		
+		hideSplashScreen();
         return(
 
             <Dialog
@@ -15,11 +19,11 @@ class Maintenance extends React.Component {
                 actions = { [    ] }
             >   
                 <div>
-                    <div>
+				{/*<div>
                         <img src = ".img/Maintenance.png" alt = "Maintenance" style = {{ display: "block", margin: "0 auto" }} />
-                    </div>
+				</div>
 
-                    <br/><br/>
+                    <br/><br/>*/}
 
                     <div style = {{ height: '20px', fontSize: '18px', textAlign: "center" }} > 
                         This Site is under Maintenance.

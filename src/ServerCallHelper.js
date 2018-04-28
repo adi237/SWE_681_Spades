@@ -1,4 +1,4 @@
-
+//http://ec2-34-227-161-141.compute-1.amazonaws.com:5001
 const serverAddress = window.APP_MODE == "DEVELOPMENT" ? "" : window.SERVER_URL;
 
 
@@ -99,7 +99,6 @@ export function checkUserLoggedIn(onServerError) {
     xmlHttp.send(null);
 
     if (xmlHttp.status === 200) {
-        console.log(xmlHttp.responseText);
         return xmlHttp.responseText;
     }
 
