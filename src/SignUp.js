@@ -9,13 +9,142 @@ import IconButton from 'material-ui/IconButton';
 import Snackbar from 'material-ui/Snackbar';
 import Paper from 'material-ui/FontIcon';
 import Dialog from 'material-ui/Dialog';
+import DatePicker from 'material-ui/DatePicker';
+import Toggle from 'material-ui/Toggle';
+
+const optionsStyle = {
+  maxWidth: 255,
+  marginRight: 'auto',
+};
+
 
 class SignUp extends React.Component {
+	
+	state = {
+      Snackbarmessage: '',
+      Snackbaropen: false,
+    };
+      handleRequestClose = () => {
+    this.setState({
+      Snackbaropen: false,
+    });
+  };
 
+
+constructor(props) {
+    super(props);
+
+    const minDate = new Date();
+    const maxDate = new Date();
+    minDate.setFullYear(minDate.getFullYear() - 1);
+    minDate.setHours(0, 0, 0, 0);
+    maxDate.setFullYear(maxDate.getFullYear() + 1);
+    maxDate.setHours(0, 0, 0, 0);
+
+    this.state = {
+      minDate: minDate,
+      maxDate: maxDate,
+      autoOk: false,
+      disableYearSelection: false,
+    };
+  }
+
+  handleChangeMinDate = (event, date) => {
+    this.setState({
+      minDate: date,
+    });
+  };
+
+  handleChangeMaxDate = (event, date) => {
+    this.setState({
+      maxDate: date,
+    });
+  };
+
+  handleToggle = (event, toggled) => {
+    this.setState({
+      [event.target.name]: toggled,
+    });
+  };
+
+	ValidateForm()
+	{
+		var error = [];
+		 var ElementFocus = [];
+				var name = document.getElementById("dob").value;
+                                           if(name == "")
+                                           {
+                                               error.push("Please Enter Date of Birth");
+                                               document.getElementById("dob").value = "";
+		                                    ElementFocus.push("dob");
+                                
+                                
+                                           }
+                                           else if(!name.match(/([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))/))
+                                           {
+                                               error.push("Date of Birth should be of the format YYYY-MM-DD ");
+                                            document.getElementById("dob").value = "";
+		                                    ElementFocus.push("dob");
+                                           }
+               var email = document.getElementById("email").value
+                                           if (email == "")
+                                           {
+                                               error.push("please enter Email");
+                                               document.getElementById("email").value = "";
+		                                       ElementFocus.push("email");
+                                           }
+                                           else if(!email.match(/^[\_]*([a-z0-9]+(\.|\_*)?)+@([a-z][a-z0-9\-]+(\.|\-*\.))+[a-z]{2,6}$/))
+                                           {
+                                               error.push("Email entered is not valid ");
+                                               document.getElementById("email").value = "";
+		                                       ElementFocus.push("email");
+                                               
+                                              
+                                           }
+                var password = document.getElementById("password").value
+                                           if (password == "")
+                                           {
+                                               error.push("please enter password");
+                                               document.getElementById("password").value = "";
+		                                       ElementFocus.push("password");
+                                           }
+                                           else if(!password.match(/^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{6,16}$/))
+                                           {
+                                               error.push("password entered is not valid ");
+                                               document.getElementById("password").value = "";
+		                                       ElementFocus.push("password");
+                                               
+                                              
+                                           }
+                 var username = document.getElementById("username").value
+                                           if (username == "")
+                                           {
+                                               error.push("please enter username");
+                                               document.getElementById("username").value = "";
+		                                       ElementFocus.push("username");
+                                           }
+                                           else if(!username.match(/^[a-zA-Z0-9]+$/))
+                                           {
+                                               error.push("username entered is not valid ");
+                                               document.getElementById("username").value = "";
+		                                       ElementFocus.push("username");
+                                               
+                                              
+                                           }
+
+        var err = '';
+        error.forEach(
+    function(error) {
+        err += error + ',';
+    }
+);
+        this.setState({Snackbarmessage: err, Snackbaropen: true});
+	}
     render() {
         hideSplashScreen();
 
         return(
+        	<div>
             <Dialog
                 actions = {
                     [    ]
@@ -33,30 +162,53 @@ class SignUp extends React.Component {
 					
 					<div style = {{ textAlign: "center" }} >
 						<TextField
-						  id='UserText'
+						  id='username'
 						  hintText="Username Field"
 						  floatingLabelText="Username"
 						  fullWidth={true}
+						  required
 						/><br />
-						<TextField
-						  id='PassText'
+						 <TextField
+						  id='password'
 						  hintText="Password Field"
 						  floatingLabelText="Password"
 						  type="password"
 						  fullWidth={true}
-						/><br />
-						<TextField
-						  id='Name'
-						  hintText="Name Field"
-						  floatingLabelText="Name"
+						  required
+						/><br /> 
+					{/*	<TextField
+						  id='dob'
+						  hintText="MM-DD-YYYY"
+						  floatingLabelText="Date Of Birth"
 						  fullWidth={true}
-						/><br />
+						  required
+						/> <br /> */}
 						<TextField
-						  id='Email'
+						  id='email'
 						  hintText="lee@example.com"
 						  floatingLabelText="Email"
 						  fullWidth={true}
+						  required
 						/><br />
+
+							   
+							        <div style={optionsStyle}>
+							          <DatePicker
+							          id='dob'
+							            onChange={this.handleChangeMinDate}
+							            autoOk={this.state.autoOk}
+							            floatingLabelText="Date Of Birth"
+							            fullWidth={true}
+							            hintText="YYYY-MM-DD"
+							           // defaultDate={this.state.minDate}
+							            disableYearSelection={this.state.disableYearSelection}
+							            required
+							          />
+							         
+							   
+							        </div>
+							      
+
                     </div>
 					
 					<div className="imgcontainer123" style = {{ height:"30px", fontSize: '18px', textAlign: "center" }} >
@@ -64,14 +216,24 @@ class SignUp extends React.Component {
                     </div>
 					
 					<Flexbox className="ButtonContainer" flexDirection="row">
-							<RaisedButton label="Sign Up" primary={true} onClick={this.onClickReset} fullWidth={true}/>
+							<RaisedButton label="Sign Up" primary={true} onClick={this.ValidateForm.bind(this)} fullWidth={true}/>
 					</Flexbox>
 					
 					<div className="imgcontainer123" style = {{ height:"10px", fontSize: '18px', textAlign: "center" }} >
 						
                     </div>
                 </div>  
+
             </Dialog>
+
+            <Snackbar
+          open={this.state.Snackbaropen}
+          message={this.state.Snackbarmessage}
+          autoHideDuration={9999}
+          bodyStyle={{ maxWidth: 200, height: 200 }}
+          onRequestClose={this.handleRequestClose}
+        />
+       </div>
         );
     }
 }
