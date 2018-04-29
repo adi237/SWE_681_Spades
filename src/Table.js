@@ -8,9 +8,11 @@ import RaisedButton from 'material-ui/RaisedButton';
 import ComponentLoadMask from './ComponentLoadMask.js';
 import Dialog from 'material-ui/Dialog';
 import socketIOClient from 'socket.io-client'
+import Snackbar from 'material-ui/Snackbar';
 import Avatar from 'material-ui/Avatar';
 import ListItem from 'material-ui/List/ListItem';
 import NumberInput from 'material-ui-number-input';
+import Promise from 'bluebird';
 import { makeServerCall } from './ServerCallHelper.js';
 import {
   Table,
@@ -52,6 +54,101 @@ Suits:
 
 class GamePlayBoard extends Component {
 	
+	rankTranslation={
+		1: "A",
+		2: "2",
+		3: "3",
+		4: "4",
+		5: "5",
+		6: "6",
+		7: "7",
+		8: "8",
+		9: "9",
+		10: "10",
+		11: "J",
+		12: "Q",
+		13: "K"
+	}
+	
+	suitTranslation={
+		0 : "S",
+		1 : "H",
+		2 : "C",
+		3 : "D"
+	}
+	
+	deck;
+	endpoint = "https://ec2-34-227-161-141.compute-1.amazonaws.com:5001"
+	socket = socketIOClient(this.endpoint);
+	playerId = 1;
+	
+	constructor(props){
+		super(props);
+		var context=this;
+		this.socket.on("gameUpdateClient"+this.props.GameInfo.id+"Player"+this.playerId,(msg) => {
+			debugger;
+			//update the left image. as right image is always updated locally and emitted.
+			var leftImg = document.getElementById('leftCardImg');
+			var rightImg = document.getElementById('rightCardImg');
+			var winnerLabel = document.getElementById('rightCardImg');
+			var jsonVar = JSON.parse(msg);
+			switch(jsonVar.type){
+				
+				case 'full':
+					context.props.dispatch(saveGameInfo(jsonVar.GameInfo));
+				break;
+				
+				case 'cardPlayed':
+					if(jsonVar.playerId == 1) 
+					{
+						leftImg.src = require("./img/"+jsonVar.cardId);
+						leftImg.style.display = "";
+					}
+					else{
+						 rightImg.src = require("./img/"+jsonVar.cardId);
+						 rightImg.style.display = "";
+					}
+				break;
+				
+				case 'roundFinished':
+					if(context.playerId == jsonVar.winner){
+						//win hands 
+						this.openCloseDialog('snackBar',{open:true,message:"You win this round!"})
+					}else{
+						//Loose
+						this.openCloseDialog('snackBar',{open:true,message:"You loose this round!"})
+					}
+					leftImg.style.display = "none";
+					rightImg.style.display = "none";
+					context.openCloseDialog('waitingLoadMask',true);
+				break;
+			}
+		});
+		
+		this.socket.on("gameReady",(msg) => {
+			try{
+				var tempResult = JSON.parse(msg);
+				context.props.dispatch(saveGameInfo(tempResult));
+				
+				//put a singular deck object with a total of only 26 cards. 13 keep and 13 discard.
+				context.renderInitialDeck(context);
+				
+				context.deck.shuffle();
+				
+				this.setState({currentSelectionCardIndex: 0, cardSelectionDialogOpen: true},() => { 
+					setTimeout(function(){ 
+						var cardSelectionImg = document.getElementById('cardSelectionImg');
+						cardSelectionImg.src = require("./img/" + context.rankTranslation[context.deck.cards[0].rank] + context.suitTranslation[context.deck.cards[0].suit] + ".png");
+					}, 1000);
+					
+				});
+				
+			}
+			catch(err){
+				console.log(err);
+			}
+		});
+	}
 	
 	//if(this.props.GameInfo.gameInitiator == this.props.CurrentPlayerInfo.playerId) means that this is the server. Meaning all deals will happend here and then distributed to the players.
 	componentDidMount() {
@@ -61,43 +158,56 @@ class GamePlayBoard extends Component {
 		
 		if(playArea)
 			playArea.style.height = centralContainerHeight + "px";
-		
-		window.onload = function(e){ 
-			context.renderInitialDeck(context);
-		}
 	}
 	
-	deck;
-	endpoint = "https://ec2-34-227-161-141.compute-1.amazonaws.com:5001"
-	socket = socketIOClient(this.endpoint);
+	
 	//socket.emit(eventName, msg);
 	state = {
 		scoreCardDialogOpen: false,
 		bidDialogOpen: false,
 		bidValue: null,
 		quitGameDialogOpen:false,
-		bidErrorText: ''
+		bidErrorText: '',
+		currentSelectionCardIndex:0,
+		gameInitiating: false,
+		cardSelectionDialogOpen: false,
+		selectedCards:[],
+		imgURL: "",
+		snackBarOpen: false,
+		snackBarMessage: "",
     };
 	
 	renderInitialDeck(context){
 		
 		var cont = document.getElementById('container');
 		
-		this.deck = window.Deck();
+		context.deck = window.Deck();
+		this.playerId = context.props.CurrentPlayerInfo.playerId;
+		var removedCards=[];
 		
 		// add to DOM
-		this.deck.mount(cont);
-		this.deck.intro();
-		this.deck.shuffle();
-		this.deck.fan();
+		context.deck.mount(cont);
+		//context.deck.intro();
 		
-		
-		/*this.deck.cards.forEach(function (card, i) {
-			  card.enableDragging()
-			  card.enableFlipping()
-		});*/
-		
-		//context.dealCards();
+		var flag;
+		context.deck.cards.reduceRight(function(acc,card,index,object){
+			flag=false;
+			card.setSide('back');
+			
+			context.props.GameInfo.players[context.playerId].currentChooseCards.forEach(function (currentChooseCards, i) {
+				if(currentChooseCards.suit == card.suit && currentChooseCards.rank == card.rank)
+				{
+					flag=true;
+				}
+			});
+			
+			if(!flag)
+			{
+				card.$el.style.display="none";
+				card.$el.classList.add("discard");
+				removedCards.push(object.splice(index, 1));
+			}
+		}, []);
 	}
 
 	openCloseDialog(type,open){
@@ -112,98 +222,70 @@ class GamePlayBoard extends Component {
 			case 'Quit':
 				this.setState({quitGameDialogOpen: open});
 			break;
+			case 'cardSelection':
+				this.setState({cardSelectionDialogOpen: open});
+			break;
+			case 'waitingLoadMask':
+				open ? document.getElementById('waitingLoadMask').style.display = "" : document.getElementById('waitingLoadMask').style.display = "none";
+			break;
+			case 'snackBar':
+				this.setState({snackBarOpen: open.open, snackBarMessage: open.message});
+			break;
 		}
 	
 	}
 	
-	dealCards(){
-		var northAvatar = document.getElementsByClassName('NorthAvatar') ? document.getElementsByClassName('NorthAvatar')[0] : null;
-		var NorthOuterContainer = document.getElementsByClassName('NorthOuterContainer') ? document.getElementsByClassName('NorthOuterContainer')[0] : null;
-		var SouthContainer = document.getElementsByClassName('SouthContainer') ? document.getElementsByClassName('SouthContainer')[0] : null;
-		var westAvatar = document.getElementsByClassName('WestAvatar') ? document.getElementsByClassName('WestAvatar')[0] : null;
-		var eastAvatar = document.getElementsByClassName('EastAvatar') ? document.getElementsByClassName('EastAvatar')[0] : null;
-		var southAvatar = document.getElementsByClassName('SouthAvatar') ? document.getElementsByClassName('SouthAvatar')[0] : null;
-		
-		
-		//Update dealer
-		
-
-		var context = this;
-		var counter=0;
-		var randomVar;
-		if(northAvatar && westAvatar && eastAvatar && southAvatar){
-			this.deck.cards.forEach(function (card, i) {
-				card.setSide('back');
-				
-				randomVar = i * 20;
-				// explode
-				//debugger;
-				switch(i%4){
-					case 0:
-						context.cardAnimateTo(
-							card,
-							{
-								i: i,
-								x: northAvatar.getBoundingClientRect().x-(window.innerWidth/2) ,
-								y: northAvatar.getBoundingClientRect().bottom-(window.innerHeight/2),
-								onComplete: context.onCompleteCardDealingOthers(card,i,randomVar),
-								randVar: randomVar
-							}
-						);
-					break;
-					case 1:
-						context.cardAnimateTo(
-							card,
-							{
-								i: i,
-								x: eastAvatar.getBoundingClientRect().x-(window.innerWidth/2) ,
-								y: eastAvatar.getBoundingClientRect().bottom-(window.innerHeight/2),
-								onComplete: context.onCompleteCardDealingOthers(card,i,randomVar),
-								randVar: randomVar
-							}
-						);
-					break;
-					case 2:
-						context.cardAnimateTo(
-							card,
-							{
-								i: i,
-								x: southAvatar.getBoundingClientRect().x-100+counter-(window.innerWidth/2) ,
-								y: SouthContainer.getBoundingClientRect().top-(window.innerHeight/2),
-								onComplete: context.onCompleteCardDealingCurrentPlayer(card,i,randomVar,{x:southAvatar.getBoundingClientRect().x-100+counter-(window.innerWidth/2),y:SouthContainer.getBoundingClientRect().top-(window.innerHeight/2)}),
-								randVar: randomVar
-							}
-						);
-					break;
-					case 3:
-						context.cardAnimateTo(
-							card,
-							{
-								i: i,
-								x: westAvatar.getBoundingClientRect().x-(window.innerWidth/2) ,
-								y: westAvatar.getBoundingClientRect().bottom-(window.innerHeight/2),
-								onComplete: context.onCompleteCardDealingOthers(card,i,randomVar),
-								randVar: randomVar
-							}
-						);
-					break;
-				}
-				
-				if(i%4==0)
-					counter = counter+25;
-			})
-		}
-		else{
-			//display error
-		}
-	}
 	
 	dealCardsForPlayer(){
+		var SouthContainer = document.getElementsByClassName('SouthContainer') ? document.getElementsByClassName('SouthContainer')[0] : null;
+		var southAvatar = document.getElementsByClassName('SouthAvatar') ? document.getElementsByClassName('SouthAvatar')[0] : null;
 		
+		var discardContainer = document.getElementById('rightCardContainer') ? document.getElementsByClassName('rightCardContainer') : null;
+		
+		var context = this;
+		var randomVar = 10;
+		var cards = context.state.selectedCards;
+		var counter=0;
+		
+		
+		
+		for(var index=0;index<cards.length;index++){
+			var card = cards[index];
+			counter = counter + 30;
+			context.cardAnimateTo(
+				card,
+				{
+					x: southAvatar.getBoundingClientRect().x-100+counter-(window.innerWidth/2) ,
+					y: SouthContainer.getBoundingClientRect().top-(window.innerHeight/2),
+					onComplete: context.onCompleteCardDealingCurrentPlayer(card,randomVar,{x:southAvatar.getBoundingClientRect().x-100+counter-(window.innerWidth/2),y:SouthContainer.getBoundingClientRect().top-(window.innerHeight/2)}),
+					randVar: randomVar
+				}
+			);
+		}
+	
+			
 	}
 	
 	setBid(num){
 		//this.state.bidValue is the entered bid.
+		this.openCloseDialog('Bid',false);
+		
+		//emit message to let others know of the bid.
+		//also emit the bid message.
+		var temp={
+			gameId: this.props.GameInfo.id,
+			playerId: this.playerId,
+			currentSelectedCards: this.state.selectedCards,
+			type: 'init',
+			bid: document.getElementById('num').value
+		}
+		this.emitSocketMessage('gameUpdate',JSON.stringify(temp));
+	}
+	
+	emitSocketMessage(event,message){
+		this.socket = socketIOClient(this.endpoint);
+		
+		this.socket.emit(event,message);
 	}
 	
 	cardAnimateTo(card,Obj){
@@ -304,9 +386,9 @@ class GamePlayBoard extends Component {
 		setTimeout(function(){ card.$el.style.display = "none"; }, 3000 + randomVar);
 	}
 	
-	onCompleteCardDealingCurrentPlayer(card,index,randomVar,position){
+	onCompleteCardDealingCurrentPlayer(card,randomVar,position){
 		setTimeout(function(){ card.setSide('front'); }, 3000 + randomVar);
-		
+		var context = this;
 		card.$el.addEventListener('mouseenter', onMouseEnter);
 		card.$el.addEventListener('mouseleave', onMouseLeave);
 		card.$el.addEventListener('mousedown', onClickCard);
@@ -334,34 +416,134 @@ class GamePlayBoard extends Component {
 		}
 		
 		function onClickCard(){
-			card.animateTo({
-				delay: 500,
-				duration: 1000,
-				ease: 'quartOut',
-				
-				x: 100,
-				y: 100
-			});
+			card.$el.style.display ="none";
+			var temp={
+					gameId: context.props.GameInfo.id,
+					playerId: context.playerId,
+					type: 'cardPlayed',
+					cardId: context.rankTranslation[card.rank] + context.suitTranslation[card.suit] + ".png",
+					suit: card.suit,
+					rank: card.rank
+			};
+			context.emitSocketMessage('gameUpdate',JSON.stringify(temp));
+			
+			//show waiting loadmask. 
+			context.openCloseDialog('waitingLoadMask',true);
 		}
+	}
+	
+	onCardSelect(){
+		var cardSelectionImg = document.getElementById('cardSelectionImg');
+		var nextCardIndex = this.state.currentSelectionCardIndex + 2 ; //on selection I will discard the next one and give the user a selection of + 2 position card.
+		var discardCardIndex = this.state.currentSelectionCardIndex + 1 ; 
+		var cardSelectionLabel = document.getElementById('cardSelectionLabel');
+		var discardButton = document.getElementById('discardButton');
+		var selectButton = document.getElementById('selectButton');
+		
+		this.deck.cards[discardCardIndex].$el.style.display="none";
+		this.deck.cards[discardCardIndex].$el.classList.add("discardNotSelected");
+			
+		
+		if(this.state.selectedCards.length < 13)
+		{
+			this.state.selectedCards.push(this.deck.cards[this.state.currentSelectionCardIndex]);
+			this.setState({selectedCards: this.state.selectedCards , currentSelectionCardIndex: nextCardIndex});
+			cardSelectionImg.src = require("./img/" + this.rankTranslation[this.deck.cards[discardCardIndex].rank] + this.suitTranslation[this.deck.cards[discardCardIndex].suit] + ".png");
+			cardSelectionLabel.innerHTML = "You skipped this card!";
+			
+			discardButton.style.display="none";
+			selectButton.style.display="none";
+			var context = this;
+			
+			if(this.state.selectedCards.length < 13)
+			{
+				setTimeout(function(){ 
+						cardSelectionLabel.innerHTML = "Please Choose!";
+						discardButton.style.display="";
+						selectButton.style.display="";
+						cardSelectionImg.src = require("./img/" + context.rankTranslation[context.deck.cards[nextCardIndex].rank] + context.suitTranslation[context.deck.cards[nextCardIndex].suit] + ".png");
+				}, 1000);
+			}
+			else{
+				//card Selections done!
+				this.endSelectionPhase();
+			}
+			
+		}
+		else{
+			this.endSelectionPhase();
+		}
+	}
+	
+	onCardDiscard(){
+		var cardSelectionImg = document.getElementById('cardSelectionImg');
+		
+		var nextCardIndex = this.state.currentSelectionCardIndex + 2;
+		var discardCardIndex = this.state.currentSelectionCardIndex ; 
+		
+		var cardSelectionLabel = document.getElementById('cardSelectionLabel');
+		var discardButton = document.getElementById('discardButton');
+		var selectButton = document.getElementById('selectButton');
+		
+		this.deck.cards[discardCardIndex].$el.style.display="none";
+		this.deck.cards[discardCardIndex].$el.classList.add("discardNotSelected");
+			
+		
+		if(this.state.selectedCards.length < 13)
+		{
+			
+			
+			this.state.selectedCards.push(this.deck.cards[discardCardIndex+1]);
+			this.setState({selectedCards: this.state.selectedCards , currentSelectionCardIndex: nextCardIndex});
+			
+			
+			cardSelectionLabel.innerHTML = "You got this card!";
+			
+			discardButton.style.display="none";
+			selectButton.style.display="none";
+			cardSelectionImg.src = require("./img/" + this.rankTranslation[this.deck.cards[discardCardIndex+1].rank] + this.suitTranslation[this.deck.cards[discardCardIndex+1].suit] + ".png");
+			var context = this;
+			
+			if(this.state.selectedCards.length < 13)
+			{
+				setTimeout(function(){ 
+						cardSelectionLabel.innerHTML = "Please Choose!";
+						discardButton.style.display="";
+						selectButton.style.display="";
+						cardSelectionImg.src = require("./img/" + context.rankTranslation[context.deck.cards[nextCardIndex].rank] + context.suitTranslation[context.deck.cards[nextCardIndex].suit] + ".png");
+				}, 1000);
+			}
+			else{
+				//card Selections done!
+				this.endSelectionPhase();
+			}
+			
+		}
+		else{
+			this.endSelectionPhase();
+		}
+	}
+	
+	endSelectionPhase(){
+		//card Selections done!
+			this.openCloseDialog('cardSelection',false);
+			this.setState({currentSelectionCardIndex: 0});
+			this.dealCardsForPlayer();
+			console.log(this.state.selectedCards);
+			this.openCloseDialog('Bid',true);
 	}
 	
 	render() {
 		hideSplashScreen();
 		var context=this;
-		this.socket.on("gameReady",(msg) => {
-			try{
-				var tempResult = JSON.parse(msg);
-				context.props.dispatch(saveGameInfo(tempResult));
-			}
-			catch(err){
-				console.log(err);
-			}
-		});
 		
 		return (
 		  <div className="Board">
-		  
+			
+			<div id="container" style={{width: 'auto',height: 'auto'}}/>
+			{/* LOAD MASKS!*/}
 			<div 
+				id="waitingLoadMask"
 				style = {{ 
 					position: "fixed",
 					width: "100%",
@@ -372,100 +554,120 @@ class GamePlayBoard extends Component {
 					bottom: 0,
 					backgroundColor: "rgba(0,0,0,.5)",
 					zIndex: 12,
-					display: (this.props.GameInfo.gameReady ? (this.props.GameInfo.round.turn == this.props.CurrentPlayerInfo.playerId ? "none" : "") : "none") 
+					//display: (this.props.GameInfo.gameReady ? (this.props.GameInfo.round.turn == this.props.CurrentPlayerInfo.playerId ? "none" : "") : "none")
+					display: "none",
+					textAlign: 'center',
+					alignItems: 'center',
 				}}
 			>
-				PLEASE WAIT FOR YOUR TURN.
+				<h3><label style={{color:'white'}}>PLEASE WAIT FOR YOUR TURN. </label></h3>
 			</div>
-
+			
+			
+			<div 
+				style = {{ 
+					position: "fixed",
+					width: "100%",
+					height: "100%",
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					backgroundColor: "rgba(0,0,0,.5)",
+					zIndex: 5,
+					display: (this.props.GameInfo.gameReady ? "none" : "") 
+				}}
+			>
+						<ComponentLoadMask bgColor="a" message="Please wait while other players join."/>
+			</div>
+			
+			 <Snackbar
+				  open={this.state.snackBarOpen}
+				  message={this.state.snackBarMessage}
+				  autoHideDuration={5000}
+				  onRequestClose={() => this.openCloseDialog('snackBar',{open:false,message:""})}
+				/>
 			
 			{/*OUTER CONTAINER*/}
 			<Flexbox className="OuterContainer" flexDirection="column" minHeight="100vh">
 			  
-			  {/*NORTH PLAYER*/}
-			  <Flexbox className="NorthOuterContainer" flexDirection="column" element="header" flexGrow={2} style={flexCenter}>
+				{/*NORTH PLAYER*/}
+				<Flexbox className="NorthOuterContainer" flexDirection="column" element="header" flexGrow={1} style={flexCenter}>
 				
-				<ListItem
-				  leftAvatar={<Avatar className="NorthAvatar">{this.props.GameInfo.gameReady ? (this.props.CurrentPlayerInfo.playerId == "P1" ? this.props.GameInfo.players[1].uname[0] : this.props.GameInfo.players[0].uname[0] ) : "?"}</Avatar>}
-				>
-					{this.props.GameInfo.gameReady ? (this.props.CurrentPlayerInfo.playerId == "P1" ? this.props.GameInfo.players[1].uname : this.props.GameInfo.players[0].uname ) : "?"}
-				</ListItem>
-				
-			  </Flexbox>
-			 
-			  {/*CENTERAL INNER CONTAINER*/}
-			  <Flexbox flexGrow={4} className="CentralOuterContainer" flexDirection="row" style={{alignItems: 'center'}}>
-				  
-				  {/*WEST PLAYER*/}
-				  <Flexbox flexGrow={2} className="WestContainer">
-				  </Flexbox>
-				 
-				  {/*CARD AREA*/}
-				  <Flexbox flexGrow={4} className="CardContainer" style={{alignItems: 'center', border:'1px solid black'}}>
-					<div 
-						onClick={this.dealCards.bind(this)}
+					<ListItem
+					  leftAvatar={<Avatar className="NorthAvatar">{this.props.GameInfo.gameReady ? (this.props.CurrentPlayerInfo.playerId == 1 ? this.props.GameInfo.players[2].uname[0] : this.props.GameInfo.players[1].uname[0] ) : "?"}</Avatar>}
 					>
-					Card Container
-					</div>
-					
-					<div 
-						id="CardPlayArea"
+						{this.props.GameInfo.gameReady ? (this.props.CurrentPlayerInfo.playerId == 1 ? this.props.GameInfo.players[2].uname : this.props.GameInfo.players[1].uname ) : "?"}
+						<br/>
+						{this.props.GameInfo.gameReady ? (this.props.CurrentPlayerInfo.playerId == 1 ? this.props.GameInfo.players[2].currentHands +"/"+ this.props.GameInfo.players[2].currentBid : this.props.GameInfo.players[1].currentHands +"/"+  this.props.GameInfo.players[1].currentBid ) : "?"}
+					</ListItem>
+				
+				</Flexbox>
+			 
+				{/*CENTERAL INNER CONTAINER*/}
+				<Flexbox flexGrow={5} className="CentralOuterContainer" flexDirection="row" style={{alignItems: 'center'}}>
+				  
+					{/*WEST PLAYER*/}
+					<Flexbox flexGrow={2} flexDirection="row" className="WestContainer">
+					</Flexbox>
+				 
+					{/*CARD AREA*/}
+					<Flexbox 
+						id="CardPlayArea" 
+						flexGrow={4} 
+						className="CardContainer" 
+						flexDirection="row"  
 						style={{
-							width: '100%',
+							alignItems: 'center', 
+							border:'1px solid black',
 							height: '100%'
 						}}
 					>
-					
-					{/*<button onClick={() => this.emitSocketMessage('cardPlayed',{a:'b'})}>Change Color</button>*/}
-					
-					{	this.props.GameInfo.round.turn == this.props.CurrentPlayerInfo.playerId ?
-						<h2> Please Select A Card To Play By Clicking On It. </h2>
-						: null
-					}
+						
+						<div
+							id="leftCardContainer"
+							style={{
+								width: '50%',
+								alignItems: 'center',
+								height: '100%'
+							}}
+						> 
+						{	this.props.GameInfo.gameReady ? (this.props.GameInfo.round.turn == this.props.CurrentPlayerInfo.playerId ?
+							<h2> Please Select A Card To Play By Clicking On It. </h2>
+							: null) : null
+						}
+						<img id="leftCardImg" style={{display:'none',width: "4.875rem", height: "6.5rem"}}/> 
+						</div>
+						
 						<div 
-							style = {{ 
-								position: "fixed",
-								width: "100%",
-								height: "100%",
-								top: 0,
-								left: 0,
-								right: 0,
-								bottom: 0,
-								backgroundColor: "rgba(0,0,0,.5)",
-								zIndex: 5,
-								display: (this.props.GameInfo.gameReady ? "none" : "") 
+							id="rightCardContainer"
+							style={{
+								width: '50%',
+								alignItems: 'center',
+								height: '100%'
 							}}
 						>
-                                    <ComponentLoadMask bgColor="a" message="Please wait while other players join."/>
-                        </div>
-						<div 
-							id="container"
-							style={{
-								width: 'auto',
-								height: 'auto'
-							}}
-						/>
-					</div>
-					
-				  </Flexbox>
+							<img id="rightCardImg" style={{display:'none',width: "4.875rem", height: "6.5rem"}}/>
+						</div>
+					</Flexbox>
 				 
-				  {/*EAST PLAYER*/}
-				  <Flexbox flexGrow={2} className="EastContainer">
-					  {/* empty space */}
-					<Flexbox flexGrow={10} />
-				  </Flexbox>
-			  </Flexbox>
+					{/*EAST PLAYER*/}
+					<Flexbox flexGrow={2} className="EastContainer">
+					</Flexbox>
+				</Flexbox>
 			 
  				{/*SOUTH PLAYER i.e. YOU*/}
-			  <Flexbox element="footer" flexDirection="column" flexGrow={2} className="SouthContainer" style={flexCenter}>
-				{/* empty space */}
-				<Flexbox flexGrow={10} />
-				<ListItem
-				  leftAvatar={<Avatar className="SouthAvatar">{this.props.UserInfo.infoDetails.name[0]}</Avatar>}
-				>
-					{this.props.UserInfo.infoDetails.name}
-				</ListItem>
-			  </Flexbox>
+				<Flexbox element="footer" flexDirection="column" flexGrow={3} className="SouthContainer" style={flexCenter}>
+					{/* empty space */}
+					<Flexbox flexGrow={10} />
+					<ListItem
+					  leftAvatar={<Avatar className="SouthAvatar">{this.props.UserInfo.infoDetails.name[0]}</Avatar>}
+					>
+						{this.props.UserInfo.infoDetails.name}
+						<br/>
+						{this.props.GameInfo.players[this.playerId].currentHands +"/"+ this.props.GameInfo.players[this.playerId].currentBid}
+					</ListItem>
+				</Flexbox>
 			</Flexbox>
 			
 			{/* Score Dialog */}
@@ -652,6 +854,33 @@ class GamePlayBoard extends Component {
                     <i className = "fa fa-times" style = {{ fontSize: '1rem'}} />
                 </FloatingActionButton>
 				
+				
+				<Dialog
+				  title="Card Selection"
+				  actions = {[
+						  <RaisedButton
+							label="Discard"
+							id="discardButton"
+							primary={true}
+							onClick={this.onCardDiscard.bind(this)}
+						  />,
+						  <RaisedButton
+							label="Select"
+							id="selectButton"
+							primary={true}
+							onClick={this.onCardSelect.bind(this)}
+						  />,
+				  ]}
+				  modal={true}
+				  contentStyle = {{ width:'50%', maxWidth: "none" }}
+				  open={this.state.cardSelectionDialogOpen}
+				  onRequestClose={() => this.openCloseDialog('cardSelection',false)}
+				>
+					<div id="cardSelectionContainer" style = {{ textAlign: "center" }}>
+						<label id="cardSelectionLabel" > Please Choose! </label> <br/>
+						<img id="cardSelectionImg" style={{width: "3.875rem", height: "5.5rem"}} />
+					</div>
+				</Dialog>
 			
 		  </div>
 		);
@@ -679,12 +908,6 @@ export const saveGameInfo = (gameInfo) => ({
     type: 'SAVE_GAME_INFO',
     gameInfo
 });
-
-export const setPlayersOnBoardGS = (PlayersOnBoard) => ({
-    type: 'SET_PLAYERS_ON_BOARD',
-    PlayersOnBoard
-});
-
 /**
  * Maps portions of the store to props of your choosing
  * @param state: passed down through react-redux's 'connect'
@@ -693,8 +916,7 @@ const mapStateToProps = function(state){
   return {
 	  UserInfo: state.globalObject.UserInfo,
 	  GameInfo: state.globalObject.GameInfo,
-	  CurrentPlayerInfo: state.globalObject.CurrentPlayerInfo,
-	  PlayersOnBoard : state.globalObject.PlayersOnBoard,
+	  CurrentPlayerInfo: state.globalObject.CurrentPlayerInfo
   }
 }
 

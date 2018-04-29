@@ -7,6 +7,7 @@ import Checkbox from 'material-ui/Checkbox';
 import RaisedButton from 'material-ui/RaisedButton';
 import TextField from 'material-ui/TextField';
 import IconButton from 'material-ui/IconButton';
+import Promise from 'bluebird';
 import Avatar from 'material-ui/Avatar';
 import Dialog from 'material-ui/Dialog';
 import ComponentLoadMask from './ComponentLoadMask.js';
@@ -34,6 +35,7 @@ class HomePage extends React.Component {
 		activeGamesList:[],
 		newGamePassword: null,
 		passwordProtection: false,
+		imageURL: "./img/8C.png",
 		selectedGameListIndex: null
     };
 	
@@ -43,8 +45,8 @@ class HomePage extends React.Component {
 		this.refreshActiveGameList(this);
 	}
 	
-	gotoGamePlayArea(){
-		this.props.history.push('/game');
+	gotoGamePlayArea(gid){
+		gid ? this.props.history.push('/game#'+gid) : this.props.history.push('/game');
 	}
 	
 	onSuccessJoinGame(cont){
@@ -65,7 +67,7 @@ class HomePage extends React.Component {
 			
 			if(result && result.joined){
 				context.props.dispatch(saveGameInfo(result.GameInfo));
-				context.props.dispatch(saveCurrentPlayerInfo(result.currentPlayerInfo));
+				context.props.dispatch(saveCurrentPlayerInfo(result.CurrentPlayerInfo));
 				context.gotoGamePlayArea();
 			}
 			
@@ -169,7 +171,12 @@ class HomePage extends React.Component {
 	
 	startNewGame(password) {
 		//makeServerCall to star to new game
-		var url = 'createNewGame?password='+password;
+		var deck = window.Deck();
+		deck.shuffle();
+		
+		
+		var url = 'createNewGame?password='+password+'&cards='+encodeURI(JSON.stringify(deck.cards));
+		
 		var context=this;
 		makeServerCall(url, function(response, options){
 			
@@ -183,8 +190,16 @@ class HomePage extends React.Component {
 			}
 			
 			if(result != null){
-				context.props.dispatch(saveGameInfo(result));
-				context.gotoGamePlayArea();
+				
+				
+				let pom = new Promise(function (resolve, reject) {
+                    context.props.dispatch(saveGameInfo(result.GameInfo));
+					context.props.dispatch(saveCurrentPlayerInfo(result.CurrentPlayerInfo));
+					resolve('done');
+				});
+
+				pom.then(() => context.gotoGamePlayArea());
+				
 			}
 		});
 	}

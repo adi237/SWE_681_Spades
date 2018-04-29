@@ -71,8 +71,8 @@ constructor(props) {
 	{
 		var error = [];
 		 var ElementFocus = [];
-				var name = document.getElementById("dob").value;
-                                           if(name == "")
+				var dob = document.getElementById("dob").value;
+                                           if(dob == "")
                                            {
                                                error.push("Please Enter Date of Birth");
                                                document.getElementById("dob").value = "";
@@ -80,7 +80,7 @@ constructor(props) {
                                 
                                 
                                            }
-                                           else if(!name.match(/([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))/))
+                                           else if(!dob.match(/([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))/))
                                            {
                                                error.push("Date of Birth should be of the format YYYY-MM-DD ");
                                             document.getElementById("dob").value = "";
@@ -123,7 +123,7 @@ constructor(props) {
                                                document.getElementById("username").value = "";
 		                                       ElementFocus.push("username");
                                            }
-                                           else if(!username.match(/^[a-zA-Z0-9]+$/))
+                                           else if(!username.match(/^[a-zA-Z]+$/))
                                            {
                                                error.push("username entered is not valid ");
                                                document.getElementById("username").value = "";
@@ -132,13 +132,43 @@ constructor(props) {
                                               
                                            }
 
-        var err = '';
-        error.forEach(
-    function(error) {
-        err += error + ',';
-    }
-);
-        this.setState({Snackbarmessage: err, Snackbaropen: true});
+		
+		
+		if(error.length > 0){
+			var err = '';
+			error.forEach(
+			function(error) {
+					err += error + ',';
+					}
+
+			);
+			this.setState({Snackbarmessage: err, Snackbaropen: true});
+		}
+		else{
+			var context = this;
+			var url = 'registerUser?uname='+username+"&password="+password+"&email="+email+"&dob="+dob;
+			makeServerCall(url, function(response, options){
+				
+				var result; 
+			
+				try {
+					result = JSON.parse(response);
+				}
+				catch(e) {
+					result = null;
+				}
+				
+				if(result.status == "success")
+				{
+					context.props.history.push('/login');
+				}
+				else{
+					context.setState({Snackbarmessage: "Something went wrong! Please Try again Later!", Snackbaropen: true});
+				}
+				
+			});
+		}
+        
 	}
     render() {
         hideSplashScreen();
@@ -164,29 +194,22 @@ constructor(props) {
 						<TextField
 						  id='username'
 						  hintText="Username Field"
-						  floatingLabelText="Username"
+						  floatingLabelText="Name"
 						  fullWidth={true}
 						  required
 						/><br />
 						 <TextField
 						  id='password'
-						  hintText="Password Field"
+						  hintText="len: 6-16, 1 num, 1 char, 1 [!@#$%^&*]"
 						  floatingLabelText="Password"
 						  type="password"
 						  fullWidth={true}
 						  required
 						/><br /> 
-					{/*	<TextField
-						  id='dob'
-						  hintText="MM-DD-YYYY"
-						  floatingLabelText="Date Of Birth"
-						  fullWidth={true}
-						  required
-						/> <br /> */}
 						<TextField
 						  id='email'
 						  hintText="lee@example.com"
-						  floatingLabelText="Email"
+						  floatingLabelText="Email (this is your username)"
 						  fullWidth={true}
 						  required
 						/><br />
@@ -227,15 +250,15 @@ constructor(props) {
             </Dialog>
 
             <Snackbar
-          open={this.state.Snackbaropen}
-          message={this.state.Snackbarmessage}
-          autoHideDuration={9999}
-          bodyStyle={{ maxWidth: 200, height: 200 }}
-          onRequestClose={this.handleRequestClose}
-        />
+			  open={this.state.Snackbaropen}
+			  message={this.state.Snackbarmessage}
+			  autoHideDuration={9999}
+			  bodyStyle={{ maxWidth: 200, maxheight: 200 }}
+			  onRequestClose={this.handleRequestClose}
+			/>
        </div>
         );
     }
 }
 
-export default SignUp;
+export default withRouter((SignUp));

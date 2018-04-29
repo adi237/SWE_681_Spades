@@ -22,50 +22,8 @@ const initialStore = {
 		historyGamesList:[],
 		userStatistics:{}
 	},
-	GameInfo: {
-		gameReady: false,
-		score:{
-			"team1": 0,
-			"team2": 0
-		},
-		round:{
-			currentRound: 2,
-			turn: 'P1',
-			roundHistory:{
-				1:{
-					"Team1":{
-						bid: 5,
-						blindbid:{
-							playerId: 1
-						},
-						completedBids: 2
-					},
-					"Team2":{
-						bid: 7,
-						completedBids: 4
-					},
-				},
-				2:{
-					"Team1":{
-						bid: 5,
-						blindbid:{
-							playerId: 1
-						},
-						completedBids: 2
-					},
-					"Team2":{
-						bid: 7,
-						completedBids: 4
-					},
-				}
-			},
-			dealer: 'P4'
-		}
-	},
-	CurrentPlayerInfo: {
-		playerId: 'P1',
-		cards:[]
-	},
+	GameInfo: {},
+	CurrentPlayerInfo: {},
     isUserLoggedIn: false
 };
 
