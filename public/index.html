@@ -41,6 +41,7 @@
 
 				return a;
 			};
+			
 		
 			window.SERVER_URL = window.location.hostname.includes('localhost') || window.location.hostname.includes('192.168') || window.location.hostname.includes('ec2') ? "https://ec2-34-227-161-141.compute-1.amazonaws.com:5001/" : "http://"+window.location.hostname + ":5001/";
             window.APP_MODE = window.location.href.includes('localhost') ? 'DEVELOPMENT' : 'PRODUCTION';

@@ -12,6 +12,7 @@ import Snackbar from 'material-ui/Snackbar';
 import Avatar from 'material-ui/Avatar';
 import ListItem from 'material-ui/List/ListItem';
 import NumberInput from 'material-ui-number-input';
+import TextField from 'material-ui/TextField';
 import Promise from 'bluebird';
 import { makeServerCall } from './ServerCallHelper.js';
 import {
@@ -64,7 +65,7 @@ class GamePlayBoard extends Component {
 		7: "7",
 		8: "8",
 		9: "9",
-		10: "10",
+		10: "T",
 		11: "J",
 		12: "Q",
 		13: "K"
@@ -85,63 +86,105 @@ class GamePlayBoard extends Component {
 	constructor(props){
 		super(props);
 		var context=this;
-		this.socket.on("gameUpdateClient"+this.props.GameInfo.id+"Player"+this.playerId,(msg) => {
-			debugger;
-			//update the left image. as right image is always updated locally and emitted.
+		
+		
+		this.socket.on("gameUpdateClient"+this.props.GameInfo.id,(msg) => {
+			
 			var leftImg = document.getElementById('leftCardImg');
 			var rightImg = document.getElementById('rightCardImg');
 			var winnerLabel = document.getElementById('rightCardImg');
 			var jsonVar = JSON.parse(msg);
+			
 			switch(jsonVar.type){
 				
 				case 'full':
-					context.props.dispatch(saveGameInfo(jsonVar.GameInfo));
+					context.openCloseDialog('waitingLoadMask',true);
 				break;
 				
 				case 'cardPlayed':
+					context.setState({gameLog: context.state.gameLog + "\n" +context.props.GameInfo.players[jsonVar.playerId].uname + " played " + jsonVar.cardId.replace(".png","")});
 					if(jsonVar.playerId == 1) 
 					{
 						leftImg.src = require("./img/"+jsonVar.cardId);
 						leftImg.style.display = "";
+						jsonVar.playerId = 2;
 					}
 					else{
 						 rightImg.src = require("./img/"+jsonVar.cardId);
 						 rightImg.style.display = "";
+						 jsonVar.playerId = 1;
+					}
+				case 'turn':
+					if(context.playerId == jsonVar.playerId && !jsonVar.wait){
+						context.openCloseDialog('waitingLoadMask',false);
+					}else{
+						context.openCloseDialog('waitingLoadMask',true);
 					}
 				break;
 				
-				case 'roundFinished':
+				case 'playFinished':
+					context.setState({gameLog: context.state.gameLog + "\n" +context.props.GameInfo.players[jsonVar.winner].uname + " won the Round!"});
 					if(context.playerId == jsonVar.winner){
-						//win hands 
-						this.openCloseDialog('snackBar',{open:true,message:"You win this round!"})
+						//win  
+						context.openCloseDialog('snackBar',{open:true,message:"You win this round!"})
 					}else{
 						//Loose
-						this.openCloseDialog('snackBar',{open:true,message:"You loose this round!"})
+						context.openCloseDialog('snackBar',{open:true,message:"You loose this round!"})
 					}
 					leftImg.style.display = "none";
 					rightImg.style.display = "none";
 					context.openCloseDialog('waitingLoadMask',true);
 				break;
+				
+				case 'gameFinished':
+					//show stats and then exit!
+					var message = "";
+					context.playerId == jsonVar.winner ? message = "YOU WIN THE GAME!" : message = "YOU LOOSE THE GAME!";
+					context.setState({gameFinished: true,gameResult: message});
+					context.openCloseDialog('ScoreCard',true);
+					context.finishGame(true);
+					context.openCloseDialog('snackBar',{open:true,message: message});
+				break;
 			}
+			jsonVar.GameInfo ? context.props.dispatch(saveGameInfo(jsonVar.GameInfo)) : null;
 		});
 		
-		this.socket.on("gameReady",(msg) => {
+		this.socket.on("gameReady"+this.props.GameInfo.id,(msg) => {
 			try{
 				var tempResult = JSON.parse(msg);
-				context.props.dispatch(saveGameInfo(tempResult));
+				var leftImg = document.getElementById('leftCardImg');
+				var rightImg = document.getElementById('rightCardImg');				
 				
-				//put a singular deck object with a total of only 26 cards. 13 keep and 13 discard.
-				context.renderInitialDeck(context);
-				
-				context.deck.shuffle();
-				
-				this.setState({currentSelectionCardIndex: 0, cardSelectionDialogOpen: true},() => { 
-					setTimeout(function(){ 
-						var cardSelectionImg = document.getElementById('cardSelectionImg');
-						cardSelectionImg.src = require("./img/" + context.rankTranslation[context.deck.cards[0].rank] + context.suitTranslation[context.deck.cards[0].suit] + ".png");
-					}, 1000);
-					
+				let pom = new Promise(function (resolve, reject) {
+					context.props.dispatch(saveGameInfo(tempResult));
+					resolve('done');
 				});
+
+				pom.then(() => {
+					//put a singular deck object with a total of only 26 cards. 13 keep and 13 discard.
+					context.renderInitialDeck(context);
+					leftImg.style.display = "none";
+					rightImg.style.display = "none";
+					var str = context.state.gameLog + "\n ---INITIATING ROUND " +context.props.GameInfo.rounds + " ---"
+							+ "\n " + tempResult.players[1].uname + " has score " + tempResult.players[1].totalScore
+							+ "\n " + tempResult.players[2].uname + " has score " + tempResult.players[2].totalScore;
+					
+					this.setState({gameLog: str, 
+						currentSelectionCardIndex: 0, 
+						selectedCards:[] ,
+						scoreCardDialogOpen: true, 
+						cardSelectionDialogOpen: true
+						},
+						() => { 
+							setTimeout(function(){ 
+								var cardSelectionImg = document.getElementById('cardSelectionImg');
+								cardSelectionImg.src = require("./img/" + context.rankTranslation[context.deck.cards[0].rank] + context.suitTranslation[context.deck.cards[0].suit] + ".png");
+							}, 1000);
+						
+					});
+				});
+				
+				
 				
 			}
 			catch(err){
@@ -160,11 +203,16 @@ class GamePlayBoard extends Component {
 			playArea.style.height = centralContainerHeight + "px";
 	}
 	
+	componentDidUpdate(){
+		var textarea = document.getElementById('auditTextField');
+		textarea.scrollTop = textarea.scrollHeight;
+	}
 	
 	//socket.emit(eventName, msg);
 	state = {
 		scoreCardDialogOpen: false,
 		bidDialogOpen: false,
+		gameFinished: false,
 		bidValue: null,
 		quitGameDialogOpen:false,
 		bidErrorText: '',
@@ -174,6 +222,8 @@ class GamePlayBoard extends Component {
 		selectedCards:[],
 		imgURL: "",
 		snackBarOpen: false,
+		gameLog: "",
+		gameResult: "",
 		snackBarMessage: "",
     };
 	
@@ -181,13 +231,15 @@ class GamePlayBoard extends Component {
 		
 		var cont = document.getElementById('container');
 		
+		if(context.deck != null)
+			context.deck.unmount();
+	
 		context.deck = window.Deck();
 		this.playerId = context.props.CurrentPlayerInfo.playerId;
 		var removedCards=[];
 		
 		// add to DOM
 		context.deck.mount(cont);
-		//context.deck.intro();
 		
 		var flag;
 		context.deck.cards.reduceRight(function(acc,card,index,object){
@@ -208,6 +260,8 @@ class GamePlayBoard extends Component {
 				removedCards.push(object.splice(index, 1));
 			}
 		}, []);
+		
+		context.deck.shuffle();
 	}
 
 	openCloseDialog(type,open){
@@ -234,8 +288,7 @@ class GamePlayBoard extends Component {
 		}
 	
 	}
-	
-	
+		
 	dealCardsForPlayer(){
 		var SouthContainer = document.getElementsByClassName('SouthContainer') ? document.getElementsByClassName('SouthContainer')[0] : null;
 		var southAvatar = document.getElementsByClassName('SouthAvatar') ? document.getElementsByClassName('SouthAvatar')[0] : null;
@@ -280,6 +333,7 @@ class GamePlayBoard extends Component {
 			bid: document.getElementById('num').value
 		}
 		this.emitSocketMessage('gameUpdate',JSON.stringify(temp));
+		this.openCloseDialog('waitingLoadMask',true);
 	}
 	
 	emitSocketMessage(event,message){
@@ -312,7 +366,8 @@ class GamePlayBoard extends Component {
 		
 		if(this.props.GameInfo.gameReady)
 		{
-			//penalty of 100 coins.
+			// no penalty as game did not start.
+			this.finishGame(true);
 		}
 		else{
 			// no penalty as game did not start.
@@ -326,21 +381,13 @@ class GamePlayBoard extends Component {
 	}
 	
 	finishGame(properEnd){
-		var url = 'finishGame?gid=' + this.props.GameInfo.gameId + "&properEnd="+properEnd;
-		makeServerCall(url, function(response, options){
-			
-			var result; 
-        
-			try {
-				result = JSON.parse(response);
-			}
-			catch(e) {
-				result = null;
-			}
-			
-			
-			
-		});
+		var temp={
+			gameId: this.props.GameInfo.id,
+			playerId: this.playerId,
+			auditLogs: this.state.gameLog,
+			type: 'deleteGame'
+		}
+		this.emitSocketMessage('gameUpdate',JSON.stringify(temp));
 	}
 	
 	/**
@@ -386,6 +433,23 @@ class GamePlayBoard extends Component {
 		setTimeout(function(){ card.$el.style.display = "none"; }, 3000 + randomVar);
 	}
 	
+	checkIfSecondUserCanPlayCard(card){
+		var context = this;
+		var playedCardSuit = context.props.GameInfo.player1Card ? context.props.GameInfo.player1Card[1] : context.props.GameInfo.player2Card[1];
+		var allowed = true;
+		
+		
+		context.deck.cards.forEach(function(deckCard,i){
+			//check if played card suit is similar to one in your deck.
+			if(context.suitTranslation[deckCard.suit] == playedCardSuit && deckCard.$el.style.display == "")
+			{
+				allowed = false;
+			}
+		});
+		
+		return allowed;
+	}
+	
 	onCompleteCardDealingCurrentPlayer(card,randomVar,position){
 		setTimeout(function(){ card.setSide('front'); }, 3000 + randomVar);
 		var context = this;
@@ -416,6 +480,50 @@ class GamePlayBoard extends Component {
 		}
 		
 		function onClickCard(){
+			var forceSpades = false;
+				
+			//Spades play!
+			if(!context.props.GameInfo.spadesAllowed && card.suit == 0)
+			{
+				//if player has no other cards left
+				//then spades play is allowed.
+				var playerOnlyHasSpades=true;
+				context.deck.cards.forEach(function(deckCard,i){
+					//check if played card suit is similar to one in your deck.
+					if(context.suitTranslation[deckCard.suit] != "S" && deckCard.$el.style.display == "")
+					{
+						playerOnlyHasSpades = false;
+					}
+				});
+				
+				if(playerOnlyHasSpades){
+					forceSpades = true;
+				}
+				else{
+				
+					//meaning this is the first card played
+					//if(document.getElementById('rightCardImg').style.display == "none" && document.getElementById('leftCardImg').style.display == "none")
+					if(context.props.GameInfo.cardsPlayed == 0)
+					{
+						context.openCloseDialog('snackBar',{open:true,message:'Cannot Play A Spades until the break'});
+						return;
+					}
+				}
+			}
+		
+		
+			//Meaning second cards suit is not same as user chosen card.
+			if(context.props.GameInfo.cardsPlayed == 1)
+			{
+				var playedCardSuit = context.props.GameInfo.player1Card ? context.props.GameInfo.player1Card[1] : context.props.GameInfo.player2Card[1];
+				var allowed = context.checkIfSecondUserCanPlayCard(card); //this checks whether the player has a card of same suit that was played by user 1 in his deck.
+				if(!allowed  && context.suitTranslation[card.suit] != playedCardSuit)
+				{
+					context.openCloseDialog('snackBar',{open:true,message:'You have a card of ' + playedCardSuit + " suit. Please Play That!"});
+					return;
+				}
+			}
+		
 			card.$el.style.display ="none";
 			var temp={
 					gameId: context.props.GameInfo.id,
@@ -423,7 +531,8 @@ class GamePlayBoard extends Component {
 					type: 'cardPlayed',
 					cardId: context.rankTranslation[card.rank] + context.suitTranslation[card.suit] + ".png",
 					suit: card.suit,
-					rank: card.rank
+					rank: card.rank,
+					forceSpades: forceSpades
 			};
 			context.emitSocketMessage('gameUpdate',JSON.stringify(temp));
 			
@@ -536,6 +645,13 @@ class GamePlayBoard extends Component {
 	render() {
 		hideSplashScreen();
 		var context=this;
+		var oldGame = null;
+		var rounds = this.props.GameInfo.roundsHistory;
+		
+		if(rounds && rounds.length > 0)
+		{
+			oldGame = rounds[rounds.length-1].gameObj;
+		}
 		
 		return (
 		  <div className="Board">
@@ -609,6 +725,14 @@ class GamePlayBoard extends Component {
 				  
 					{/*WEST PLAYER*/}
 					<Flexbox flexGrow={2} flexDirection="row" className="WestContainer">
+						<TextField
+						  id="auditTextField"
+						  value={this.state.gameLog}
+						  floatingLabelText="Audit Log of Moves Played!"
+						  multiLine={true}
+						  rows={10}
+						  rowsMax={10}
+						/>
 					</Flexbox>
 				 
 					{/*CARD AREA*/}
@@ -632,10 +756,7 @@ class GamePlayBoard extends Component {
 								height: '100%'
 							}}
 						> 
-						{	this.props.GameInfo.gameReady ? (this.props.GameInfo.round.turn == this.props.CurrentPlayerInfo.playerId ?
-							<h2> Please Select A Card To Play By Clicking On It. </h2>
-							: null) : null
-						}
+						<h2> Please Select A Card To Play By Clicking On It. </h2>
 						<img id="leftCardImg" style={{display:'none',width: "4.875rem", height: "6.5rem"}}/> 
 						</div>
 						
@@ -672,9 +793,20 @@ class GamePlayBoard extends Component {
 			
 			{/* Score Dialog */}
 			<Dialog
-			  title="ScoreCard"
+			  title={this.state.gameFinished ? this.state.gameResult : "ScoreCard"}
 			  autoScrollBodyContent={true}
-			  //modal={true}
+			  actions = {[
+					  <RaisedButton
+						label="Okay"
+						style={this.state.gameFinished ? {display: "" } : {display: "none" }}
+						primary={true}
+						onClick={() => this.props.history.push("/home")}
+					  />
+			  ]}
+			  modal={this.state.gameFinished}
+			  style={{
+				  zIndex: 1505
+			  }}
 			  open={this.state.scoreCardDialogOpen}
 			  onRequestClose={() => this.openCloseDialog('ScoreCard',false)}
 			>
@@ -687,8 +819,8 @@ class GamePlayBoard extends Component {
 					>
 					  <TableRow>
 						<TableHeaderColumn></TableHeaderColumn>
-						<TableHeaderColumn>You & Partner</TableHeaderColumn>
-						<TableHeaderColumn>West & East</TableHeaderColumn>
+						<TableHeaderColumn>{this.props.GameInfo.gameReady ? (this.props.GameInfo.players[1].uname) : "?"}</TableHeaderColumn>
+						<TableHeaderColumn>{this.props.GameInfo.gameReady ? (this.props.GameInfo.players[2].uname) : "?"}</TableHeaderColumn>
 					  </TableRow>
 					
 					</TableHeader>
@@ -698,29 +830,14 @@ class GamePlayBoard extends Component {
 						stripedRows={true}
 					>
 					  <TableRow>
-						<TableRowColumn>Combined Bid</TableRowColumn>
-						<TableRowColumn>John Smith</TableRowColumn>
-						<TableRowColumn>Employed</TableRowColumn>
+						<TableRowColumn>Current Round Bid</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[1].currentBid  : "?") : "?"}</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[2].currentBid : "?") : "?"}</TableRowColumn>
 					  </TableRow>
 					  <TableRow>
 						<TableRowColumn>Tricks Taken</TableRowColumn>
-						<TableRowColumn>Randal White</TableRowColumn>
-						<TableRowColumn>Unemployed</TableRowColumn>
-					  </TableRow>
-					  <TableRow>
-						<TableRowColumn>Bags</TableRowColumn>
-						<TableRowColumn>Stephanie Sanders</TableRowColumn>
-						<TableRowColumn>Employed</TableRowColumn>
-					  </TableRow>
-					  <TableRow>
-						<TableRowColumn>Bags from last round</TableRowColumn>
-						<TableRowColumn>Steve Brown</TableRowColumn>
-						<TableRowColumn>Employed</TableRowColumn>
-					  </TableRow>
-					  <TableRow>
-						<TableRowColumn>Total Bags</TableRowColumn>
-						<TableRowColumn>Christopher Nolan</TableRowColumn>
-						<TableRowColumn>Unemployed</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[1].currentHands : "?") : "?"}</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[2].currentHands : "?") : "?"}</TableRowColumn>
 					  </TableRow>
 					  <TableRow>
 						<TableRowColumn></TableRowColumn>
@@ -728,34 +845,19 @@ class GamePlayBoard extends Component {
 						<TableRowColumn></TableRowColumn>
 					  </TableRow>
 					  <TableRow>
-						<TableRowColumn>Successful Bids</TableRowColumn>
-						<TableRowColumn>Christopher Nolan</TableRowColumn>
-						<TableRowColumn>Unemployed</TableRowColumn>
-					  </TableRow>
-					  <TableRow>
 						<TableRowColumn>Bags Score</TableRowColumn>
-						<TableRowColumn>Christopher Nolan</TableRowColumn>
-						<TableRowColumn>Unemployed</TableRowColumn>
-					  </TableRow>
-					  <TableRow>
-						<TableRowColumn>Failed Nil Bid</TableRowColumn>
-						<TableRowColumn>Christopher Nolan</TableRowColumn>
-						<TableRowColumn>Unemployed</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[1].totalBags : "?") : "?"}</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[2].totalBags : "?") : "?"}</TableRowColumn>
 					  </TableRow>
 					  <TableRow>
 						<TableRowColumn><b>Points This Round</b></TableRowColumn>
-						<TableRowColumn>Christopher Nolan</TableRowColumn>
-						<TableRowColumn>Unemployed</TableRowColumn>
-					  </TableRow>
-					  <TableRow>
-						<TableRowColumn><b>Previous Points</b></TableRowColumn>
-						<TableRowColumn>Christopher Nolan</TableRowColumn>
-						<TableRowColumn>Unemployed</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[1].currentScore : "?") : "?"}</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[2].currentScore : "?") : "?"}</TableRowColumn>
 					  </TableRow>
 					  <TableRow>
 						<TableRowColumn><b>Total Points</b></TableRowColumn>
-						<TableRowColumn>Christopher Nolan</TableRowColumn>
-						<TableRowColumn>Unemployed</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[1].totalScore : "?") : "?"}</TableRowColumn>
+						<TableRowColumn>{this.props.GameInfo.gameReady ? (oldGame ? oldGame.players[2].totalScore : "?") : "?"}</TableRowColumn>
 					  </TableRow>
 					</TableBody>
 				</Table>

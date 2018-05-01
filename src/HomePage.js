@@ -158,10 +158,10 @@ class HomePage extends React.Component {
 			let temp = index;
 			rows.push(
 				<TableRow key = { index } style = {{ height:'24px' }}>
-					<TableRowColumn>{this.props.UserInfo.historyGamesList[index].date}</TableRowColumn>
+					<TableRowColumn>{new Date(this.props.UserInfo.historyGamesList[index].date).toDateString()}</TableRowColumn>
 					<TableRowColumn>{this.props.UserInfo.historyGamesList[index].result}</TableRowColumn>
-					<TableRowColumn>{this.props.UserInfo.historyGamesList[index].score}</TableRowColumn>
-					<TableRowColumn>{this.props.UserInfo.historyGamesList[index].coinsEarned}</TableRowColumn>
+					//<TableRowColumn>{this.props.UserInfo.historyGamesList[index].score}</TableRowColumn>
+					//<TableRowColumn>{this.props.UserInfo.historyGamesList[index].coinsEarned}</TableRowColumn>
 				</TableRow>
 			);
 		}
@@ -293,7 +293,7 @@ class HomePage extends React.Component {
 										<span style={{fontSize: "25px"}}> {this.props.UserInfo.userStatistics.winLoss} </span>
 									</Flexbox>
 									
-									<Flexbox 
+									{/*<Flexbox 
 										flexGrow={1}
 										style={{
 											margin: 20,
@@ -304,7 +304,7 @@ class HomePage extends React.Component {
 										<h2> Coins </h2> <br />
 										<span style={{fontSize: "35px"}}> {this.props.UserInfo.userStatistics.coins} </span>
 									</Flexbox>
-									
+									*/}
 								</Flexbox>
 							</Flexbox>
 							
@@ -333,7 +333,7 @@ class HomePage extends React.Component {
 									  <TableRow>
 										<TableHeaderColumn>Date</TableHeaderColumn>
 										<TableHeaderColumn>Win/Loss</TableHeaderColumn>
-										<TableHeaderColumn>Final Score</TableHeaderColumn>
+										//<TableHeaderColumn>Final Score</TableHeaderColumn>
 										<TableHeaderColumn>Coins Earned</TableHeaderColumn>
 									  </TableRow>
 									
